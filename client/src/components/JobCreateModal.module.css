@@ -9,7 +9,7 @@
   background: var(--white);
   border: 1px solid var(--oak-light);
   border-radius: 4px;
-  width: 480px;
+  width: 620px;
   max-width: 95vw;
   box-shadow: 0 8px 40px rgba(0,0,0,.4);
   display: flex;
@@ -33,6 +33,17 @@
 .detValue { font-size: .82rem; color: var(--ink); font-weight: 500; }
 
 .field { display: flex; flex-direction: column; gap: 6px; }
+
+.hrsSection { display: flex; flex-direction: column; gap: 10px; }
+.hrsSectionTitle { font-size: .6rem; letter-spacing: .2em; text-transform: uppercase; color: var(--oak-dark); font-weight: 500; }
+.hrsGrid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+.hrsBox { background: var(--grain); border: 1px solid var(--oak-light); border-radius: 3px; padding: 10px 8px; text-align: center; display: flex; flex-direction: column; gap: 6px; }
+.hrsBox label { font-size: .55rem; letter-spacing: .15em; text-transform: uppercase; color: var(--muted); }
+.hrsBox input { text-align: center; background: var(--white); border: 1px solid var(--oak-light); border-radius: 2px; padding: 6px 4px; font-family: 'DM Mono', monospace; font-size: .85rem; font-weight: 500; width: 100%; outline: none; }
+.hrsBox input:focus { border-color: var(--oak); }
+.hrsTotalBox { background: var(--dark); border-radius: 3px; padding: 10px 8px; text-align: center; display: flex; flex-direction: column; gap: 6px; justify-content: center; }
+.hrsTotalBox label { font-size: .55rem; letter-spacing: .15em; text-transform: uppercase; color: var(--muted); }
+.hrsTotalVal { font-size: .95rem; font-weight: 500; color: var(--oak); font-family: 'DM Mono', monospace; }
 
 .footer {
   padding: 16px 24px;

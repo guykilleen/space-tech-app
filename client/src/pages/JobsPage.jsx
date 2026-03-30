@@ -121,73 +121,9 @@ export default function JobsPage() {
   return (
     <div className={styles.page}>
 
-      {/* ── New Job Form ── */}
+      {/* ── Job Register ── */}
       <div className="section-header">
         <h1 className="section-title">Project Tracking</h1>
-        <span className="section-tag">New Entry</span>
-      </div>
-
-      <form className="form-panel" onSubmit={handleSaveNew}>
-        <div className="form-panel-title">Job Details</div>
-        <div className="form-grid cols-4">
-          <div className="field">
-            <label>Job Number</label>
-            <input value={form.job} onChange={e => setForm(f=>({...f,job:e.target.value}))} placeholder="001" />
-          </div>
-          <div className="field">
-            <label>Quote Number</label>
-            <input value={form.quoteNum} onChange={e => setForm(f=>({...f,quoteNum:e.target.value}))} placeholder="Q-001" />
-          </div>
-          <div className="field span-2">
-            <label>Client Name</label>
-            <input required value={form.client_name} onChange={e => setForm(f=>({...f,client_name:e.target.value}))} placeholder="Client full name or company" />
-          </div>
-          <div className="field span-full">
-            <label>Project Name</label>
-            <input value={form.project} onChange={e => setForm(f=>({...f,project:e.target.value}))} placeholder="Project title" />
-          </div>
-          <div className="field">
-            <label>Start Date</label>
-            <input type="date" value={form.wip_start} onChange={e => setForm(f=>({...f,wip_start:e.target.value}))} />
-          </div>
-          <div className="field">
-            <label>Due On-Site</label>
-            <input type="date" value={form.wip_due} onChange={e => setForm(f=>({...f,wip_due:e.target.value}))} />
-          </div>
-        </div>
-
-        <div className="divider" />
-        <div className="form-panel-title">Hours Tracking</div>
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:12 }}>
-          {HRS_FIELDS.map((key, i) => (
-            <div key={key} style={{ background:'var(--grain)', border:'1px solid var(--oak-light)', borderRadius:3, padding:'12px 14px', textAlign:'center' }}>
-              <label style={{ display:'block', marginBottom:8 }}>{HRS_LABELS[i]}</label>
-              <input
-                type="number" value={form[key]} min="0" step="0.5"
-                onChange={e => setForm(f=>({...f,[key]:e.target.value}))}
-                style={{ textAlign:'center', background:'var(--white)', padding:'8px 6px', fontSize:'1rem', fontWeight:500, borderRadius:2 }}
-              />
-            </div>
-          ))}
-        </div>
-        <div style={{ marginTop:12, display:'flex', justifyContent:'flex-end' }}>
-          <div style={{ background:'var(--dark)', borderRadius:3, padding:'12px 14px', textAlign:'center', minWidth:160 }}>
-            <label style={{ display:'block', color:'var(--muted)', marginBottom:8 }}>Total Hours</label>
-            <div style={{ fontSize:'1.2rem', fontWeight:500, color:'var(--oak)' }}>{totalHrs(form).toFixed(1)} hrs</div>
-          </div>
-        </div>
-
-        {isAdminOrMgr && (
-          <div className="btn-row">
-            <button type="button" className="btn btn-outline" onClick={() => setForm(emptyForm)}>Clear</button>
-            <button type="submit" className="btn btn-primary">Save Job →</button>
-          </div>
-        )}
-      </form>
-
-      {/* ── Job Register ── */}
-      <div className="section-header" style={{ marginTop: 40 }}>
-        <h2 className="section-title">Job Register</h2>
         <span className="section-tag">{pCount} Job{pCount === 1 ? '' : 's'}</span>
       </div>
 

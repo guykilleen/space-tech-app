@@ -238,7 +238,9 @@ async function remove(req, res) {
 
 // Convert accepted quote → new job (with optional sub-job support)
 async function convertFromQuote(req, res) {
-  const { parent_job_id, wip_due } = req.body;
+  const { parent_job_id, wip_due,
+          hours_admin = 0, hours_machining = 0, hours_assembly = 0,
+          hours_delivery = 0, hours_install = 0 } = req.body;
   try {
     const { rows: qRows } = await pool.query('SELECT * FROM quotes WHERE id = $1', [req.params.id]);
     const quote = qRows[0];
@@ -267,11 +269,13 @@ async function convertFromQuote(req, res) {
       const { rows } = await client.query(
         `INSERT INTO jobs
            (job_number, quote_id, quote_number, parent_job_id, client_name, project,
+            hours_admin, hours_machining, hours_assembly, hours_delivery, hours_install,
             wip_start, wip_due, created_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
          RETURNING *`,
         [jobNum, quote.id, quote.quote_number, parent_job_id || null,
          quote.client_name, quote.project,
+         hours_admin, hours_machining, hours_assembly, hours_delivery, hours_install,
          quote.accept_date || null, wip_due || null, req.user.id]
       );
       await client.query('COMMIT');
