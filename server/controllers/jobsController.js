@@ -257,4 +257,16 @@ async function convertFromQuote(req, res) {
   }
 }
 
-module.exports = { getAll, getOne, create, update, updateWip, remove, convertFromQuote };
+async function markAllComplete(req, res) {
+  try {
+    const { rowCount } = await pool.query(
+      `UPDATE jobs SET wip_completed = true, wip_complete = 100 WHERE wip_completed = false`
+    );
+    res.json({ updated: rowCount });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+module.exports = { getAll, getOne, create, update, updateWip, remove, convertFromQuote, markAllComplete };

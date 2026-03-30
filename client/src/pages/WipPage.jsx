@@ -53,6 +53,15 @@ export default function WipPage() {
     } catch { toast.error('Failed to update progress'); }
   }
 
+  async function markAllDone() {
+    if (!window.confirm('Mark ALL active jobs as completed? You can reopen them individually afterwards.')) return;
+    try {
+      const res = await api.patch('/jobs/mark-all-complete');
+      toast.success(`${res.data.updated} jobs marked as completed`);
+      load();
+    } catch { toast.error('Failed to mark all as done'); }
+  }
+
   async function toggleDone(id, currentlyDone) {
     if (!currentlyDone) {
       if (!window.confirm('Mark this job as completed? It will be hidden from the active WIP list.')) return;
@@ -77,6 +86,11 @@ export default function WipPage() {
             <input type="checkbox" checked={showCompleted} onChange={e => setShowCompleted(e.target.checked)} />
             Show completed
           </label>
+          {canEdit && activeCount > 0 && (
+            <button className="btn-red" style={{ fontSize:'.6rem', padding:'5px 12px' }} onClick={markAllDone}>
+              Mark All Done
+            </button>
+          )}
         </div>
         <div style={{ overflowX:'auto' }}>
           <table className={styles.wipTable}>
