@@ -1,0 +1,60 @@
+.shell { min-height: 100vh; display: flex; flex-direction: column; }
+
+.header {
+  background: var(--dark);
+  padding: 18px 48px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  border-bottom: 4px solid var(--oak);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  overflow: hidden;
+}
+.header::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  background: repeating-linear-gradient(105deg, transparent, transparent 8px, rgba(204,20,20,0.04) 8px, rgba(204,20,20,0.04) 9px);
+  pointer-events: none;
+}
+
+.logoMark { font-family: 'DM Mono', monospace; font-size: 1.5rem; letter-spacing: .12em; text-transform: uppercase; line-height: 1.2; font-weight: 500; }
+.logoSpace { color: var(--white); }
+.logoTech  { color: var(--oak); }
+.logoDesign { color: var(--muted); font-size: 1.1rem; letter-spacing: .3em; }
+.logoSub  { font-size: .62rem; color: var(--muted); letter-spacing: .25em; text-transform: uppercase; font-weight: 300; margin-top: 4px; }
+
+.headerMeta { text-align: right; font-size: .68rem; color: var(--muted); letter-spacing: .1em; line-height: 2; }
+
+.logoutBtn {
+  background: none; border: none; color: var(--oak-light); font-family: 'DM Mono', monospace;
+  font-size: .68rem; cursor: pointer; padding: 0; letter-spacing: .08em;
+  transition: color .15s;
+}
+.logoutBtn:hover { color: var(--oak); }
+
+.nav {
+  background: var(--mid);
+  display: flex;
+  padding: 0 48px;
+  border-bottom: 2px solid var(--oak-dark);
+  position: sticky;
+  top: 88px;
+  z-index: 99;
+  flex-wrap: wrap;
+}
+
+.tabBtn {
+  background: none; border: none; color: var(--oak-light);
+  font-family: 'DM Mono', monospace; font-size: .72rem;
+  letter-spacing: .15em; text-transform: uppercase;
+  padding: 16px 28px; cursor: pointer;
+  border-bottom: 3px solid transparent;
+  transition: all .2s; opacity: .65;
+  display: inline-block;
+}
+.tabBtn:hover { opacity: 1; color: var(--oak); }
+.tabBtn.active { border-bottom-color: var(--oak); color: var(--oak); opacity: 1; background: rgba(204,20,20,.10); }
+
+.content { flex: 1; }

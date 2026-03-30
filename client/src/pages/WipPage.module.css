@@ -1,0 +1,47 @@
+.page { padding: 40px 48px 60px; max-width: 1300px; margin: 0 auto; }
+
+.tableWrap { background: var(--white); border: 1px solid var(--oak-light); border-radius: 4px; overflow: hidden; box-shadow: var(--shadow-sm); }
+.toolbar { padding: 16px 20px; background: var(--sawdust); border-bottom: 1px solid var(--oak-light); display: flex; align-items: center; justify-content: space-between; }
+
+.showCompleted { display: flex; align-items: center; gap: 8px; font-size: .65rem; color: var(--muted); cursor: pointer; }
+.showCompleted input { cursor: pointer; }
+
+.wipTable { width: 100%; border-collapse: collapse; font-size: .75rem; }
+.wipTable thead { background: var(--dark); color: var(--oak-light); }
+.wipTable th { padding: 12px 10px; text-align: left; font-size: .56rem; letter-spacing: .18em; text-transform: uppercase; font-weight: 400; white-space: nowrap; }
+.wipTable td { padding: 10px 10px; border-bottom: 1px solid var(--sawdust); color: var(--ink); vertical-align: middle; white-space: nowrap; }
+.wipTable tr:last-child td { border-bottom: none; }
+.wipTable tr:hover td { background: var(--grain); }
+
+.subRow td { background: rgba(200,169,110,.04); }
+.completedRow td { opacity: .45; }
+.completedRow:hover td { background: var(--sawdust); }
+
+.subArrow { color: var(--muted); margin-right: 3px; }
+
+.dueDateInput {
+  background: transparent; border: none; border-bottom: 1px solid var(--oak-light);
+  font-family: 'DM Mono', monospace; font-size: .7rem; color: var(--ink); outline: none; padding: 1px 0; width: auto;
+}
+
+.pctWrap { display: flex; align-items: center; gap: 5px; min-width: 80px; }
+.pctInput {
+  width: 36px; background: transparent; border: none; border-bottom: 1px solid var(--oak-light);
+  font-family: 'DM Mono', monospace; font-size: .68rem; color: var(--ink); outline: none; padding: 1px 0; text-align: right;
+}
+.pctBar  { flex: 1; height: 4px; background: var(--sawdust); border-radius: 2px; min-width: 28px; }
+.pctFill { height: 4px; border-radius: 2px; transition: width .3s; }
+
+.doneBtn {
+  background: none; border: 1px solid #5B8B5B; border-radius: 2px;
+  font-family: 'DM Mono', monospace; font-size: .58rem; color: #3A7D44;
+  padding: 4px 9px; cursor: pointer; transition: all .15s; white-space: nowrap;
+}
+.doneBtn:hover { background: #3A7D44; color: var(--white); }
+
+.undoneBtn {
+  background: none; border: 1px solid var(--oak-light); border-radius: 2px;
+  font-family: 'DM Mono', monospace; font-size: .58rem; color: var(--muted);
+  padding: 4px 9px; cursor: pointer; transition: all .15s;
+}
+.undoneBtn:hover { border-color: var(--oak); color: var(--oak-dark); }

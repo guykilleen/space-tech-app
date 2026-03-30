@@ -1,0 +1,9 @@
+.page {
+  padding: 40px 48px 60px;
+  max-width: 1300px;
+  margin: 0 auto;
+}
+
+.pageFull {
+  padding: 24px 40px 40px;
+}

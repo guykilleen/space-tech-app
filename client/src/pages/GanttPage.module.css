@@ -1,0 +1,74 @@
+.page { padding: 24px 24px 40px; }
+
+/* Controls */
+.controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+.navBtn   { background: var(--mid); border: 1px solid var(--oak-dark); color: var(--oak-light); font-family: 'DM Mono', monospace; font-size: .7rem; padding: 8px 14px; border-radius: 2px; cursor: pointer; transition: all .18s; }
+.navBtn:hover { background: var(--dark); color: var(--oak); }
+.todayBtn { background: var(--oak); color: var(--dark); border: none; font-family: 'DM Mono', monospace; font-size: .7rem; padding: 8px 14px; border-radius: 2px; cursor: pointer; font-weight: 500; }
+.todayBtn:hover { background: var(--oak-dark); color: var(--white); }
+.periodLabel { font-size: .75rem; color: var(--mid); letter-spacing: .08em; font-weight: 500; min-width: 220px; text-align: center; }
+.viewToggle { display: flex; margin-left: auto; }
+.viewBtn { background: transparent; border: 1px solid var(--oak-light); color: var(--muted); font-family: 'DM Mono', monospace; font-size: .62rem; letter-spacing: .12em; text-transform: uppercase; padding: 7px 14px; cursor: pointer; transition: all .15s; }
+.viewBtn:first-child { border-radius: 2px 0 0 2px; }
+.viewBtn:last-child  { border-radius: 0 2px 2px 0; border-left: none; }
+.viewBtnActive { background: var(--mid); color: var(--oak); border-color: var(--oak-dark); }
+
+/* Legend */
+.legend { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; align-items: center; }
+.legendItem { display: flex; align-items: center; gap: 6px; font-size: .62rem; color: var(--muted); letter-spacing: .08em; }
+.legendDot  { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+.showCompleted { display: flex; align-items: center; gap: 8px; font-size: .65rem; color: var(--muted); cursor: pointer; }
+
+/* Scrollable chart */
+.ganttOuter {
+  background: var(--white);
+  border: 1px solid var(--oak-light);
+  border-radius: 4px;
+  overflow: auto;
+  box-shadow: var(--shadow-sm);
+  max-height: calc(100vh - 290px);
+  min-height: 300px;
+  width: 100%;
+}
+.ganttOuter::-webkit-scrollbar { height: 8px; width: 8px; background: var(--sawdust); }
+.ganttOuter::-webkit-scrollbar-thumb { background: var(--oak-light); border-radius: 4px; }
+
+.ganttInner { display: block; min-width: max-content; width: 100%; }
+
+/* Sticky header */
+.headRow { display: flex; flex-direction: row; position: sticky; top: 0; z-index: 5; background: var(--dark); }
+.nameHdr { flex-shrink: 0; padding: 12px 14px; font-size: .56rem; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); background: var(--dark); position: sticky; left: 0; z-index: 6; border-right: 2px solid var(--oak-dark); }
+.dateHdr { flex-shrink: 0; text-align: center; padding: 12px 2px; font-size: .54rem; letter-spacing: .08em; color: var(--oak-light); border-left: 1px solid rgba(200,169,110,.1); white-space: nowrap; overflow: hidden; }
+.dateHdr.todayCol { color: var(--oak); font-weight: 600; background: rgba(200,169,110,.1); }
+.dateHdr.weekend  { color: rgba(255,255,255,.2); background: rgba(0,0,0,.1); }
+
+/* Data rows */
+.dataRow { display: flex; flex-direction: row; border-bottom: 1px solid var(--sawdust); position: relative; transition: background .15s; min-height: 56px; }
+.dataRow:hover { background: var(--grain); }
+.completedRow { opacity: .4; }
+.subRow { background: rgba(200,169,110,.03); }
+
+/* Sticky name cell */
+.nameCell { flex-shrink: 0; padding: 10px 14px; background: var(--white); position: sticky; left: 0; z-index: 2; border-right: 2px solid var(--oak-light); display: flex; flex-direction: column; justify-content: center; gap: 3px; min-height: 56px; }
+.dataRow:hover .nameCell { background: var(--grain); }
+.subRow .nameCell { background: rgba(200,169,110,.03); }
+.jobNum  { font-size: .78rem; font-weight: 500; color: var(--mid); white-space: nowrap; }
+.jobName { font-size: .68rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Day cells */
+.dayCell { flex-shrink: 0; border-left: 1px solid rgba(200,169,110,.07); position: relative; align-self: stretch; }
+.dayCell.todayCol { background: rgba(200,169,110,.07); }
+.dayCell.weekend  { background: rgba(0,0,0,.025); }
+
+/* Phase bars */
+.gBar { position: absolute; top: 9px; bottom: 9px; border-radius: 3px; min-width: 3px; display: flex; align-items: center; padding: 0 5px; font-size: .58rem; color: rgba(255,255,255,.92); overflow: hidden; white-space: nowrap; cursor: default; font-weight: 400; }
+.gBar:hover { filter: brightness(1.15); }
+.gAdmin     { background: #5B8DB8; }
+.gMachining { background: #B87333; }
+.gAssembly  { background: #5B8B5B; }
+.gDelivery  { background: #8B5B8B; }
+.gInstall   { background: #B8A033; }
+
+/* Progress bar */
+.gProgress     { position: absolute; bottom: 3px; height: 5px; border-radius: 2px; background: rgba(200,169,110,.2); }
+.gProgressFill { height: 5px; border-radius: 2px; background: var(--oak); transition: width .3s; }

@@ -1,0 +1,29 @@
+.page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--dark);
+  background-image: repeating-linear-gradient(105deg, transparent, transparent 8px, rgba(200,169,110,0.03) 8px, rgba(200,169,110,0.03) 9px);
+}
+
+.card {
+  background: var(--white);
+  border: 1px solid var(--oak-light);
+  border-radius: 4px;
+  padding: 48px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.brand { text-align: center; padding-bottom: 8px; border-bottom: 1px solid var(--oak-light); }
+.brandName { font-family: 'DM Serif Display', serif; font-size: 1.4rem; color: var(--mid); }
+.brandSub  { font-size: .62rem; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); margin-top: 6px; }
+
+.field { display: flex; flex-direction: column; gap: 6px; }
+
+.submit { width: 100%; padding: 13px; font-size: .72rem; margin-top: 4px; }
