@@ -174,20 +174,51 @@ async function update(req, res) {
 }
 
 async function updateWip(req, res) {
-  const { wip_due, wip_complete, wip_completed } = req.body;
+  const {
+    wip_due, wip_completed,
+    wip_hours_admin, wip_hours_machining, wip_hours_assembly,
+    wip_hours_delivery, wip_hours_install
+  } = req.body;
   try {
+    const { rows: cur } = await pool.query('SELECT * FROM jobs WHERE id = $1', [req.params.id]);
+    if (!cur[0]) return res.status(404).json({ error: 'Job not found' });
+    const job = cur[0];
+
     const updates = [];
     const params  = [];
-    if (wip_due !== undefined)       { params.push(wip_due || null);    updates.push(`wip_due=$${params.length}`); }
-    if (wip_complete !== undefined)  { params.push(wip_complete);       updates.push(`wip_complete=$${params.length}`); }
-    if (wip_completed !== undefined) { params.push(wip_completed);      updates.push(`wip_completed=$${params.length}`); }
+
+    if (wip_due       !== undefined) { params.push(wip_due || null); updates.push(`wip_due=$${params.length}`); }
+    if (wip_completed !== undefined) { params.push(wip_completed);   updates.push(`wip_completed=$${params.length}`); }
+
+    const hoursFields = { wip_hours_admin, wip_hours_machining, wip_hours_assembly, wip_hours_delivery, wip_hours_install };
+    let anyHours = false;
+    for (const [col, val] of Object.entries(hoursFields)) {
+      if (val !== undefined) {
+        params.push(parseFloat(val) || 0);
+        updates.push(`${col}=$${params.length}`);
+        anyHours = true;
+      }
+    }
+
+    // Auto-calculate wip_complete from actual vs planned hours
+    if (anyHours) {
+      const actual = (wip_hours_admin    !== undefined ? parseFloat(wip_hours_admin)    : parseFloat(job.wip_hours_admin    || 0))
+                   + (wip_hours_machining !== undefined ? parseFloat(wip_hours_machining) : parseFloat(job.wip_hours_machining || 0))
+                   + (wip_hours_assembly  !== undefined ? parseFloat(wip_hours_assembly)  : parseFloat(job.wip_hours_assembly  || 0))
+                   + (wip_hours_delivery  !== undefined ? parseFloat(wip_hours_delivery)  : parseFloat(job.wip_hours_delivery  || 0))
+                   + (wip_hours_install   !== undefined ? parseFloat(wip_hours_install)   : parseFloat(job.wip_hours_install   || 0));
+      const planned = parseFloat(job.total_hours || 0);
+      const pct = planned > 0 ? Math.min(100, Math.round(actual / planned * 100)) : 0;
+      params.push(pct);
+      updates.push(`wip_complete=$${params.length}`);
+    }
+
     if (!updates.length) return res.status(400).json({ error: 'Nothing to update' });
     params.push(req.params.id);
     const { rows } = await pool.query(
       `UPDATE jobs SET ${updates.join(', ')} WHERE id=$${params.length} RETURNING *`,
       params
     );
-    if (!rows[0]) return res.status(404).json({ error: 'Job not found' });
     res.json(rows[0]);
   } catch (err) {
     console.error(err);

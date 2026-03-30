@@ -45,12 +45,12 @@ export default function WipPage() {
     } catch { toast.error('Failed to update due date'); }
   }
 
-  async function setPct(id, val) {
-    const pct = Math.min(100, Math.max(0, parseInt(val) || 0));
+  async function setHrs(id, field, val) {
+    const hrs = parseFloat(val) || 0;
     try {
-      await api.patch(`/jobs/${id}/wip`, { wip_complete: pct });
-      setJobs(prev => prev.map(j => j.id === id ? { ...j, wip_complete: pct } : j));
-    } catch { toast.error('Failed to update progress'); }
+      const res = await api.patch(`/jobs/${id}/wip`, { [field]: hrs });
+      setJobs(prev => prev.map(j => j.id === id ? { ...j, ...res.data } : j));
+    } catch { toast.error('Failed to update hours'); }
   }
 
   async function markAllDone() {
@@ -82,15 +82,17 @@ export default function WipPage() {
       <div className={styles.tableWrap}>
         <div className={styles.toolbar}>
           <span className="ttitle">Active Jobs</span>
-          <label className={styles.showCompleted}>
-            <input type="checkbox" checked={showCompleted} onChange={e => setShowCompleted(e.target.checked)} />
-            Show completed
-          </label>
-          {canEdit && activeCount > 0 && (
-            <button className="btn-red" style={{ fontSize:'.6rem', padding:'5px 12px' }} onClick={markAllDone}>
-              Mark All Done
-            </button>
-          )}
+          <div style={{ display:'flex', alignItems:'center', gap:16 }}>
+            {canEdit && activeCount > 0 && (
+              <button className="btn-red" style={{ fontSize:'.6rem', padding:'5px 12px' }} onClick={markAllDone}>
+                Mark All Done
+              </button>
+            )}
+            <label className={styles.showCompleted}>
+              <input type="checkbox" checked={showCompleted} onChange={e => setShowCompleted(e.target.checked)} />
+              Show completed
+            </label>
+          </div>
         </div>
         <div style={{ overflowX:'auto' }}>
           <table className={styles.wipTable}>
@@ -98,8 +100,8 @@ export default function WipPage() {
               <tr>
                 <th>Job #</th><th>Project</th><th>Client</th><th>PM</th>
                 <th>Due On-Site</th>
-                <th>Admin</th><th>Mach.</th><th>Asm.</th><th>Del.</th><th>Install</th>
-                <th>Total Hrs</th><th>Complete %</th>
+                <th>Admin Done</th><th>Mach. Done</th><th>Ass. Done</th><th>Del. Done</th><th>Install Done</th>
+                <th>Done / Planned</th><th>Complete %</th>
                 <th>Value</th><th>Actions</th>
               </tr>
             </thead>
@@ -108,7 +110,9 @@ export default function WipPage() {
                 const isSub = parseJobNum(j.job_number).sub > 0;
                 const pm    = j.quote_initials || '—';
                 const val   = j.quote_value != null ? fmtMoney(j.quote_value) : '—';
-                const pct   = j.wip_complete || 0;
+                const totalDone    = parseFloat(j.wip_hours_admin||0) + parseFloat(j.wip_hours_machining||0) + parseFloat(j.wip_hours_assembly||0) + parseFloat(j.wip_hours_delivery||0) + parseFloat(j.wip_hours_install||0);
+                const totalPlanned = parseFloat(j.total_hours||0);
+                const pct = totalPlanned > 0 ? Math.min(100, Math.round(totalDone / totalPlanned * 100)) : 0;
                 const pctColor = pct >= 100 ? '#3A7D44' : pct >= 50 ? 'var(--oak)' : '#5B8DB8';
                 const rowCls = [j.wip_completed ? styles.completedRow : '', isSub ? styles.subRow : ''].join(' ');
                 const jobDisp = isSub
@@ -133,23 +137,33 @@ export default function WipPage() {
                         j.wip_due ? new Date((j.wip_due.includes('T') ? j.wip_due.split('T')[0] : j.wip_due) + 'T00:00:00').toLocaleDateString('en-AU') : '—'
                       )}
                     </td>
-                    <td style={{ textAlign:'right', color:'var(--muted)' }}>{parseFloat(j.hours_admin||0).toFixed(1)}</td>
-                    <td style={{ textAlign:'right', color:'var(--muted)' }}>{parseFloat(j.hours_machining||0).toFixed(1)}</td>
-                    <td style={{ textAlign:'right', color:'var(--muted)' }}>{parseFloat(j.hours_assembly||0).toFixed(1)}</td>
-                    <td style={{ textAlign:'right', color:'var(--muted)' }}>{parseFloat(j.hours_delivery||0).toFixed(1)}</td>
-                    <td style={{ textAlign:'right', color:'var(--muted)' }}>{parseFloat(j.hours_install||0).toFixed(1)}</td>
-                    <td style={{ textAlign:'right', fontWeight:500, color:'var(--mid)' }}>{parseFloat(j.total_hours||0).toFixed(1)}</td>
-                    <td>
-                      <div className={styles.pctWrap}>
+                    {[
+                      ['wip_hours_admin',     j.wip_hours_admin],
+                      ['wip_hours_machining', j.wip_hours_machining],
+                      ['wip_hours_assembly',  j.wip_hours_assembly],
+                      ['wip_hours_delivery',  j.wip_hours_delivery],
+                      ['wip_hours_install',   j.wip_hours_install],
+                    ].map(([field, val]) => (
+                      <td key={field} style={{ textAlign:'right' }}>
                         {canEdit ? (
                           <input
-                            className={styles.pctInput}
-                            type="number" value={pct} min="0" max="100" step="5"
-                            onChange={e => setPct(j.id, e.target.value)}
+                            className={styles.hrsInput}
+                            type="number" min="0" step="0.5"
+                            defaultValue={parseFloat(val||0).toFixed(1)}
+                            onBlur={e => setHrs(j.id, field, e.target.value)}
                           />
                         ) : (
-                          <span className={styles.pctInput}>{pct}</span>
+                          parseFloat(val||0).toFixed(1)
                         )}
+                      </td>
+                    ))}
+                    <td style={{ textAlign:'right', fontWeight:500, color:'var(--mid)' }}>
+                      {(parseFloat(j.wip_hours_admin||0)+parseFloat(j.wip_hours_machining||0)+parseFloat(j.wip_hours_assembly||0)+parseFloat(j.wip_hours_delivery||0)+parseFloat(j.wip_hours_install||0)).toFixed(1)}
+                      <span style={{ color:'var(--muted)', fontWeight:400 }}> / {parseFloat(j.total_hours||0).toFixed(1)}</span>
+                    </td>
+                    <td>
+                      <div className={styles.pctWrap}>
+                        <span className={styles.pctInput}>{pct}</span>
                         <span style={{ fontSize:'.6rem', color:'var(--muted)' }}>%</span>
                         <div className={styles.pctBar}>
                           <div className={styles.pctFill} style={{ width:`${pct}%`, background: pctColor }} />

@@ -24,6 +24,12 @@
   font-family: 'DM Mono', monospace; font-size: .7rem; color: var(--ink); outline: none; padding: 1px 0; width: auto;
 }
 
+.hrsInput {
+  width: 44px; background: transparent; border: none; border-bottom: 1px solid var(--oak-light);
+  font-family: 'DM Mono', monospace; font-size: .7rem; color: var(--ink); outline: none; padding: 1px 0; text-align: right;
+}
+.hrsInput:focus { border-bottom-color: var(--oak); }
+
 .pctWrap { display: flex; align-items: center; gap: 5px; min-width: 80px; }
 .pctInput {
   width: 36px; background: transparent; border: none; border-bottom: 1px solid var(--oak-light);
