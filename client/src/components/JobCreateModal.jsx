@@ -14,8 +14,23 @@ export default function JobCreateModal({ quote, onClose, onCreated }) {
 
   useEffect(() => {
     if (isVariation) {
-      api.get('/jobs', { params: { wip_completed: false } })
-        .then(r => setJobs(r.data.filter(j => !j.parent_job_id))); // base jobs only
+      api.get('/jobs').then(r => {
+        const baseJobs = r.data.filter(j => !j.parent_job_id);
+
+        // Score each job by how well it matches the quote
+        const qClient  = (quote.client_name || '').toLowerCase();
+        const qProject = (quote.project || '').toLowerCase();
+        const scored = baseJobs.map(j => {
+          let score = 0;
+          if ((j.client_name || '').toLowerCase() === qClient)  score += 2;
+          if (qProject && (j.project || '').toLowerCase() === qProject) score += 3;
+          return { ...j, _score: score };
+        }).sort((a, b) => b._score - a._score || b.job_number - a.job_number);
+
+        setJobs(scored);
+        // Auto-select best match if score > 0
+        if (scored[0]?._score > 0) setParentJobId(scored[0].id);
+      });
     }
   }, [isVariation]);
 
@@ -62,14 +77,11 @@ export default function JobCreateModal({ quote, onClose, onCreated }) {
               <label>Select Parent Job (this variation belongs to)</label>
               <select value={parentJobId} onChange={e => setParentJobId(e.target.value)}>
                 <option value="">— Select parent job —</option>
-                {jobs.map(j => {
-                  const matched = (j.client_name||'').toLowerCase() === (quote.client_name||'').toLowerCase();
-                  return (
-                    <option key={j.id} value={j.id}>
-                      {j.job_number} — {j.project || j.client_name}{matched ? ' ★' : ''}
-                    </option>
-                  );
-                })}
+                {jobs.map(j => (
+                  <option key={j.id} value={j.id}>
+                    {j._score >= 5 ? '★★ ' : j._score >= 2 ? '★ ' : ''}{j.job_number} — {j.client_name}{j.project ? ` · ${j.project}` : ''}
+                  </option>
+                ))}
               </select>
             </div>
           )}
