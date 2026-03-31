@@ -40,6 +40,13 @@ export default function QuotesPage() {
     value:'', status:'pending', accept_details:'', accept_date:'',
   });
 
+  async function loadNextNumber() {
+    try {
+      const res = await api.get('/quotes/next-number');
+      setForm(f => ({ ...f, quote_number: res.data.next_number }));
+    } catch { /* ignore */ }
+  }
+
   async function load(params = {}) {
     const res = await api.get('/quotes', { params });
     const data = res.data;
@@ -48,7 +55,7 @@ export default function QuotesPage() {
     return data;
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); loadNextNumber(); }, []);
 
   const filtered = quotes.filter(q => {
     if (!search) return true;
@@ -69,15 +76,8 @@ export default function QuotesPage() {
       await api.post('/quotes', form);
       toast.success('Quote saved');
       setForm({ quote_number:'', initials:'', date: today, client_name:'', project:'', value:'', status:'pending', accept_details:'', accept_date:'' });
-      const data = await load();
-      // Suggest next number
-      const nums = data.map(q => parseInt((q.quote_number||'').match(/(\d+)$/)?.[1] || '0', 10));
-      const max  = nums.length ? Math.max(...nums) : 0;
-      const sample = data.find(q => parseInt((q.quote_number||'').match(/(\d+)$/)?.[1]||'0',10) === max);
-      if (sample) {
-        const m = String(sample.quote_number).match(/^(.*?)(\d+)$/);
-        if (m) setForm(f => ({ ...f, quote_number: m[1] + String(max + 1).padStart(m[2].length, '0') }));
-      }
+      await load();
+      await loadNextNumber();
     } catch (err) {
       toast.error(err.response?.data?.error || 'Save failed');
     }
@@ -134,7 +134,7 @@ export default function QuotesPage() {
         <div className="form-grid cols-4">
           <div className="field">
             <label>Quote Number</label>
-            <input value={form.quote_number} onChange={e => setForm(f=>({...f,quote_number:e.target.value}))} placeholder="Q-001" />
+            <input value={form.quote_number} onChange={e => setForm(f=>({...f,quote_number:e.target.value}))} placeholder="V-0001" />
           </div>
           <div className="field">
             <label>Preparer's Initials</label>
@@ -173,7 +173,7 @@ export default function QuotesPage() {
         </div>
         {isAdminOrMgr && (
           <div className="btn-row">
-            <button type="button" className="btn btn-outline" onClick={() => setForm({ quote_number:'', initials:'', date:today, client_name:'', project:'', value:'', status:'pending', accept_details:'', accept_date:'' })}>Clear</button>
+            <button type="button" className="btn btn-outline" onClick={() => { setForm({ quote_number:'', initials:'', date:today, client_name:'', project:'', value:'', status:'pending', accept_details:'', accept_date:'' }); loadNextNumber(); }}>Clear</button>
             <button type="submit" className="btn btn-primary">Save Quote →</button>
           </div>
         )}

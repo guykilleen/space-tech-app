@@ -5,6 +5,7 @@ const ctrl = require('../controllers/quotesController');
 router.use(authenticate);
 
 router.get('/',                      ctrl.getAll);         // all roles can view
+router.get('/next-number',           ctrl.getNextNumber);
 router.get('/:id',                   ctrl.getOne);
 router.post('/',                     isAdminOrMgr, ctrl.create);
 router.put('/:id',                   isAdminOrMgr, ctrl.update);

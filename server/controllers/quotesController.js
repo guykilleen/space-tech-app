@@ -1,15 +1,27 @@
 const pool = require('../config/db');
 
-// Generate next quote number matching existing style (Q-001, VQ-001, etc.)
-async function nextQuoteNumber(client, isVariation = false) {
-  const prefix = isVariation ? 'VQ-' : 'Q-';
+// Generate next quote number: V-nnnn for standard, VQ-nnnn for variations
+async function nextQuoteNumber(client, prefix = 'V-') {
   const { rows } = await client.query(
     `SELECT quote_number FROM quotes WHERE quote_number LIKE $1 ORDER BY quote_number DESC LIMIT 1`,
     [`${prefix}%`]
   );
   const last = rows[0]?.quote_number;
-  const seq  = last ? parseInt(last.replace(prefix, ''), 10) + 1 : 1;
-  return `${prefix}${String(seq).padStart(3, '0')}`;
+  const seq  = last ? parseInt(last.slice(prefix.length), 10) + 1 : 1;
+  return `${prefix}${String(seq).padStart(4, '0')}`;
+}
+
+async function getNextNumber(req, res) {
+  const client = await pool.connect();
+  try {
+    const next = await nextQuoteNumber(client, 'V-');
+    res.json({ next_number: next });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  } finally {
+    client.release();
+  }
 }
 
 async function getAll(req, res) {
@@ -62,14 +74,14 @@ async function create(req, res) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const qNum = quote_number?.trim() || await nextQuoteNumber(client);
+    const qNum = quote_number?.trim() || await nextQuoteNumber(client, 'V-');
     const { rows } = await client.query(
       `INSERT INTO quotes
          (quote_number, initials, date, client_name, project, value, status, accept_details, accept_date, created_by)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
        RETURNING *`,
       [qNum, initials || null, date || null, client_name, project || null,
-       value, status, accept_details || null, accept_date || null, req.user.id]
+       value === '' ? 0 : value, status, accept_details || null, accept_date || null, req.user.id]
     );
     await client.query('COMMIT');
     res.status(201).json(rows[0]);
@@ -101,7 +113,7 @@ async function update(req, res) {
        WHERE id=$10 RETURNING *`,
       [quote_number || e.quote_number, initials || e.initials,
        date || e.date, client_name || e.client_name, project || e.project,
-       value ?? e.value, status || e.status,
+       (value === '' ? 0 : value) ?? e.value, status || e.status,
        accept_details || e.accept_details, accept_date || null,
        req.params.id]
     );
@@ -141,4 +153,4 @@ async function remove(req, res) {
   }
 }
 
-module.exports = { getAll, getOne, create, update, updateStatus, remove };
+module.exports = { getAll, getOne, getNextNumber, create, update, updateStatus, remove };
