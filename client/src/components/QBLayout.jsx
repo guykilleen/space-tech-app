@@ -3,15 +3,14 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import styles from './Layout.module.css';
 
-const NAV = [
-  { to: '/quotes', label: '📋 Quotes' },
-  { to: '/jobs',   label: '🔨 Project Tracking' },
-  { to: '/wip',    label: '📋 WIP' },
-  { to: '/gantt',  label: '📅 Gantt' },
+const QB_NAV = [
+  { to: '/qb/quotes',     label: '📄 Quotes'     },
+  { to: '/qb/price-list', label: '💰 Price List'  },
+  { to: '/qb/contacts',   label: '👤 Contacts'    },
 ];
 
-export default function Layout() {
-  const { user, logout, isAdminOrMgr } = useAuth();
+export default function QBLayout() {
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   function handleLogout() {
@@ -26,7 +25,7 @@ export default function Layout() {
           <div className={styles.logoMark}>
             <span className={styles.logoSpace}>SPACE</span><span className={styles.logoTech}>TECH</span> <span className={styles.logoDesign}>DESIGN</span>
           </div>
-          <div className={styles.logoSub}>Quote &amp; Project Management System</div>
+          <div className={styles.logoSub}>Joinery Estimating &amp; Quoting</div>
         </div>
         <div className={styles.headerMeta}>
           <div>{new Date().toLocaleDateString('en-AU', { weekday:'long', year:'numeric', month:'long', day:'numeric' })}</div>
@@ -40,16 +39,14 @@ export default function Layout() {
       </header>
 
       <div className={styles.appSwitcher}>
-        <span className={`${styles.switchBtn} ${styles.switchBtnActive}`}>Job Tracker</span>
-        {isAdminOrMgr && (
-          <button className={styles.switchBtn} onClick={() => navigate('/qb')}>
-            Quote Builder
-          </button>
-        )}
+        <button className={styles.switchBtn} onClick={() => navigate('/quotes')}>
+          Job Tracker
+        </button>
+        <span className={`${styles.switchBtn} ${styles.switchBtnActive}`}>Quote Builder</span>
       </div>
 
       <nav className={styles.nav}>
-        {NAV.map(({ to, label }) => (
+        {QB_NAV.map(({ to, label }) => (
           <NavLink
             key={to}
             to={to}
@@ -58,14 +55,6 @@ export default function Layout() {
             {label}
           </NavLink>
         ))}
-        {isAdminOrMgr && (
-          <NavLink
-            to="/users"
-            className={({ isActive }) => `${styles.tabBtn}${isActive ? ' ' + styles.active : ''}`}
-          >
-            👥 Users
-          </NavLink>
-        )}
       </nav>
 
       <main className={styles.content}>

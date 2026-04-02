@@ -58,3 +58,40 @@
 .tabBtn.active { border-bottom-color: var(--oak); color: var(--oak); opacity: 1; background: rgba(204,20,20,.10); }
 
 .content { flex: 1; }
+
+/* ── App Switcher ── */
+.appSwitcher {
+  background: var(--dark);
+  border-bottom: 1px solid rgba(204,20,20,0.25);
+  display: flex;
+  padding: 0 48px;
+  gap: 4px;
+  position: sticky;
+  top: 88px;
+  z-index: 100;
+}
+
+.switchBtn {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  font-family: 'DM Mono', monospace;
+  font-size: .58rem;
+  letter-spacing: .25em;
+  text-transform: uppercase;
+  padding: 10px 20px;
+  cursor: pointer;
+  transition: all .2s;
+  opacity: .55;
+}
+.switchBtn:hover { color: var(--oak-light); opacity: 1; }
+.switchBtnActive {
+  color: var(--oak-light);
+  border-bottom-color: var(--oak);
+  opacity: 1;
+  cursor: default;
+}
+
+/* shift page nav below the switcher bar */
+.nav { top: 121px; }

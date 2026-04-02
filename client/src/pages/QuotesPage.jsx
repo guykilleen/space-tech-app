@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
@@ -25,6 +26,7 @@ const today = new Date().toISOString().split('T')[0];
 
 export default function QuotesPage() {
   const { isAdminOrMgr } = useAuth();
+  const navigate = useNavigate();
   const [quotes, setQuotes]     = useState([]);
   const [search, setSearch]     = useState('');
   const [editId, setEditId]     = useState(null);
@@ -216,6 +218,13 @@ export default function QuotesPage() {
                         <div style={{ display:'flex', gap:4, alignItems:'center' }}>
                           <button className="act-btn edit" onClick={() => editId === q.id ? closeEdit() : openEdit(q)}>
                             {editId === q.id ? 'Close' : 'Edit'}
+                          </button>
+                          <button
+                            className="act-btn"
+                            title="Open in Quote Builder"
+                            onClick={() => navigate(`/qb/quotes/new?quote_number=${encodeURIComponent(q.quote_number)}&project=${encodeURIComponent(q.project || '')}`)}
+                          >
+                            QB →
                           </button>
                         </div>
                       )}
