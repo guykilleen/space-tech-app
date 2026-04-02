@@ -23,11 +23,6 @@ export default function JobsPage() {
   const [editData, setEditData] = useState({});
   const [pCount, setPCount]   = useState(0);
 
-  const emptyForm = { job:'', quoteNum:'', client_name:'', project:'',
-    wip_start:'', wip_due:'',
-    hours_admin:0, hours_machining:0, hours_assembly:0, hours_delivery:0, hours_install:0 };
-  const [form, setForm]       = useState(emptyForm);
-
   function totalHrs(d) {
     return HRS_FIELDS.reduce((s, k) => s + (parseFloat(d[k]) || 0), 0);
   }
