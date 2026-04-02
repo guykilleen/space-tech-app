@@ -55,36 +55,6 @@ export default function JobsPage() {
     return na.sub - nb.sub;
   });
 
-  async function handleSaveNew(e) {
-    e.preventDefault();
-    try {
-      await api.post('/jobs', {
-        job_number:   form.job      || undefined,
-        quote_number: form.quoteNum || undefined,
-        client_name:  form.client_name,
-        project:      form.project,
-        wip_start:    form.wip_start || undefined,
-        wip_due:      form.wip_due   || undefined,
-        hours_admin:     parseFloat(form.hours_admin)     || 0,
-        hours_machining: parseFloat(form.hours_machining) || 0,
-        hours_assembly:  parseFloat(form.hours_assembly)  || 0,
-        hours_delivery:  parseFloat(form.hours_delivery)  || 0,
-        hours_install:   parseFloat(form.hours_install)   || 0,
-      });
-      toast.success('Job saved');
-      setForm(emptyForm);
-      load();
-    } catch (err) {
-      toast.error(err.response?.data?.error || 'Save failed');
-    }
-  }
-
-  async function handleDelete(id) {
-    if (!window.confirm('Delete this job?')) return;
-    try { await api.delete(`/jobs/${id}`); toast.success('Deleted'); load(); }
-    catch { toast.error('Delete failed'); }
-  }
-
   function openEdit(j) {
     setEditId(j.id);
     setEditData({

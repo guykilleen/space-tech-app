@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import api from '../utils/api';
@@ -31,10 +31,8 @@ export default function QuotesPage() {
   const [search, setSearch]     = useState('');
   const [editId, setEditId]     = useState(null);
   const [editData, setEditData] = useState({});
-  const [showForm, setShowForm] = useState(false);
   const [jobModal, setJobModal] = useState(null); // quote to convert
   const [qCount, setQCount]     = useState(0);
-  const formRef = useRef({});
 
   // New quote form state
   const [form, setForm] = useState({
@@ -83,12 +81,6 @@ export default function QuotesPage() {
     } catch (err) {
       toast.error(err.response?.data?.error || 'Save failed');
     }
-  }
-
-  async function handleDelete(id) {
-    if (!window.confirm('Delete this quote?')) return;
-    try { await api.delete(`/quotes/${id}`); toast.success('Deleted'); load(); }
-    catch { toast.error('Delete failed'); }
   }
 
   function openEdit(q) {

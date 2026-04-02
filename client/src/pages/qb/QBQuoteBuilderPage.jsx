@@ -323,7 +323,7 @@ export default function QBQuoteBuilderPage() {
 
       {/* ── Units ── */}
       {units.map((unit, ui) => {
-        const { matSub, hwSub, unitCost, unitTotal } = unitCalc(unit, margin);
+        const { matSub, hwSub, unitTotal } = unitCalc(unit, margin);
         return (
           <div key={unit._key} className={styles.unitCard}>
             <div className={styles.unitCardHeader}>

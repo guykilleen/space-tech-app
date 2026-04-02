@@ -32,6 +32,7 @@ export default function JobCreateModal({ quote, onClose, onCreated }) {
         if (scored[0]?._score > 0) setParentJobId(scored[0].id);
       });
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isVariation]);
 
   async function handleCreate() {
