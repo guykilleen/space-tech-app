@@ -95,7 +95,7 @@ export default function QBBudgetQtyPage() {
                 <td colSpan={4} style={{ textAlign: 'right', fontSize: '.7rem', letterSpacing: '.1em', color: 'var(--muted)', textTransform: 'uppercase' }}>
                   Materials subtotal
                 </td>
-                <td className="currency">{fmtMoney(totals.materials_raw)}</td>
+                <td className="currency">{fmtMoney(totals.materials)}</td>
                 <td colSpan={2} />
               </tr>
             </tbody>
