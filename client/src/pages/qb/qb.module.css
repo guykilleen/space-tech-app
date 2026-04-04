@@ -162,6 +162,53 @@
 }
 .removeLine:hover { color: #A33B2A; background: rgba(163,59,42,.07); }
 
+/* Labour hours section */
+.labourSection {
+  padding: 14px 20px;
+  border-top: 1px solid var(--oak-light);
+  background: var(--sawdust);
+}
+.labourTitle {
+  font-size: .58rem;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+.labourTitle span {
+  color: var(--oak-dark);
+  margin-left: 4px;
+}
+.labourRow {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.labourField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 110px;
+  flex: 1;
+}
+.labourField label {
+  font-size: .58rem;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.labourField input {
+  padding: 7px 10px;
+  font-size: .78rem;
+  background: var(--white);
+}
+.labourCost {
+  font-size: .68rem;
+  color: var(--oak-dark);
+  text-align: right;
+  font-weight: 500;
+}
+
 /* Unit footer */
 .unitFooter {
   padding: 12px 20px;
@@ -251,6 +298,70 @@
   text-transform: none;
   letter-spacing: 0;
 }
+/* Budget summary panel */
+.budgetSummary {
+  background: var(--white);
+  border: 1px solid var(--oak-light);
+  border-radius: 4px;
+  padding: 28px 36px;
+  box-shadow: var(--shadow-sm);
+  min-width: 380px;
+  margin-bottom: 48px;
+}
+.budgetSummaryTitle {
+  font-size: .62rem;
+  letter-spacing: .25em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--oak-light);
+}
+.budgetSummaryRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 5px 0;
+  font-size: .82rem;
+}
+.budgetSummaryRow span {
+  font-size: .68rem;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.budgetSubline {
+  padding-bottom: 12px;
+  margin-bottom: 4px;
+  border-bottom: 1px dashed var(--oak-light);
+}
+.budgetSubline span {
+  color: var(--ink) !important;
+  font-size: .72rem !important;
+}
+.budgetSummarySubtotal {
+  border-top: 2px solid var(--oak-light);
+  padding-top: 10px;
+  margin-top: 6px;
+}
+.budgetSummaryGrand {
+  border-top: 2px solid var(--oak);
+  padding-top: 12px;
+  margin-top: 4px;
+}
+.budgetSummaryGrand span {
+  font-family: 'DM Serif Display', serif;
+  font-size: .95rem !important;
+  color: var(--mid) !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+}
+.budgetSummaryGrand strong {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1.3rem;
+  color: var(--oak);
+}
+
 .totalsGrand strong {
   font-family: 'DM Serif Display', serif;
   font-size: 1.25rem;

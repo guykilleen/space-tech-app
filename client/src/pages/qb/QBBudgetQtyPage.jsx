@@ -2,7 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import api from '../../utils/api';
-import styles from '../Page.module.css';
+import styles from './qb.module.css';
+
+const LABOUR_RATE = 100;
 
 function fmtMoney(v) {
   return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(v || 0);
@@ -14,7 +16,7 @@ function fmtQty(v) {
 export default function QBBudgetQtyPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [rows, setRows] = useState([]);
+  const [data, setData] = useState(null);
   const [quoteNum, setQuoteNum] = useState('');
   const [loading, setLoading] = useState(true);
 
@@ -24,82 +26,205 @@ export default function QBBudgetQtyPage() {
       api.get(`/qb/quotes/${id}`),
     ])
       .then(([bRes, qRes]) => {
-        setRows(bRes.data);
+        setData(bRes.data);
         setQuoteNum(qRes.data.quote_number);
       })
       .catch(() => toast.error('Failed to load budget quantities'))
       .finally(() => setLoading(false));
   }, [id]);
 
-  const materials = rows.filter(r => r.category === 'Materials');
-  const hardware  = rows.filter(r => r.category === 'Hardware');
-  const grandTotal = rows.reduce((s, r) => s + Number(r.total_cost_allowed), 0);
+  if (loading) return (
+    <div className={styles.loadingMsg}>Loading…</div>
+  );
+
+  const { margin, lines, labour, totals } = data;
+  const materials = lines.filter(r => r.category === 'Materials');
+  const hardware  = lines.filter(r => r.category === 'Hardware');
+
+  const labourRows = [
+    { label: 'Admin',       field: 'admin_hours' },
+    { label: 'CNC',         field: 'cnc_hours' },
+    { label: 'Edgebander',  field: 'edgebander_hours' },
+    { label: 'Assembly',    field: 'assembly_hours' },
+  ];
 
   return (
-    <div className={styles.page}>
-      <div className="section-header">
-        <h1 className="section-title">Budget Quantities</h1>
-        <span className="section-tag">{quoteNum}</span>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+    <div className={styles.builderPage}>
+      <div className={styles.builderHeader}>
+        <div className={styles.builderTitle}>Budget Quantities — {quoteNum}</div>
+        <div className={styles.builderActions}>
           <button className="btn btn-outline" onClick={() => navigate(`/qb/quotes/${id}`)}>← Edit</button>
           <button className="btn btn-outline" onClick={() => navigate(`/qb/quotes/${id}/summary`)}>Summary →</button>
         </div>
       </div>
 
-      {loading ? (
-        <div className="empty-state"><div className="empty-text">Loading…</div></div>
-      ) : (
-        <>
-          {[['Materials', materials], ['Hardware', hardware]].map(([cat, items]) =>
-            items.length ? (
-              <div key={cat} className="table-wrap" style={{ marginBottom: 24 }}>
-                <div className="table-toolbar">
-                  <span className="ttitle">{cat}</span>
-                </div>
-                <table className="std-table">
-                  <thead>
-                    <tr>
-                      <th>Product</th>
-                      <th style={{ textAlign: 'right' }}>Total Qty</th>
-                      <th>UOM</th>
-                      <th style={{ textAlign: 'right' }}>Unit Price</th>
-                      <th style={{ textAlign: 'right' }}>Total Cost Allowed</th>
-                      <th style={{ textAlign: 'right' }}>Actual Order Value</th>
-                      <th style={{ textAlign: 'right' }}>Variance</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {items.map((r, i) => (
-                      <tr key={i}>
-                        <td>{r.product}</td>
-                        <td style={{ textAlign: 'right', fontWeight: 500 }}>{fmtQty(r.total_qty)}</td>
-                        <td>{r.unit_of_measure || '—'}</td>
-                        <td className="currency">{fmtMoney(r.price)}</td>
-                        <td className="currency"><strong>{fmtMoney(r.total_cost_allowed)}</strong></td>
-                        <td style={{ textAlign: 'right', color: 'var(--muted)' }}>—</td>
-                        <td style={{ textAlign: 'right', color: 'var(--muted)' }}>—</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : null
-          )}
-
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <div style={{
-              background: 'var(--white)', border: '1px solid var(--oak-light)',
-              borderRadius: 4, padding: '16px 28px', boxShadow: 'var(--shadow-sm)',
-              display: 'flex', gap: 48, alignItems: 'center',
-            }}>
-              <span style={{ fontSize: '.68rem', letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--muted)' }}>
-                Total Materials Cost Allowed
-              </span>
-              <strong style={{ fontSize: '1.1rem', color: 'var(--oak)' }}>{fmtMoney(grandTotal)}</strong>
-            </div>
+      {/* Materials */}
+      {materials.length > 0 && (
+        <div className="table-wrap" style={{ marginBottom: 24 }}>
+          <div className="table-toolbar">
+            <span className="ttitle">Materials</span>
+            <span style={{ marginLeft: 'auto', fontSize: '.68rem', color: 'var(--muted)' }}>
+              Raw cost — margin applied in summary below
+            </span>
           </div>
-        </>
+          <table className="std-table">
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th style={{ textAlign: 'right' }}>Total Qty</th>
+                <th>UOM</th>
+                <th style={{ textAlign: 'right' }}>Unit Price</th>
+                <th style={{ textAlign: 'right' }}>Cost Allowed</th>
+                <th style={{ textAlign: 'right' }}>Actual Order</th>
+                <th style={{ textAlign: 'right' }}>Variance</th>
+              </tr>
+            </thead>
+            <tbody>
+              {materials.map((r, i) => (
+                <tr key={i}>
+                  <td>{r.product}</td>
+                  <td style={{ textAlign: 'right', fontWeight: 500 }}>{fmtQty(r.total_qty)}</td>
+                  <td>{r.unit_of_measure || '—'}</td>
+                  <td className="currency">{fmtMoney(r.price)}</td>
+                  <td className="currency"><strong>{fmtMoney(r.total_cost_allowed)}</strong></td>
+                  <td style={{ textAlign: 'right', color: 'var(--muted)' }}>—</td>
+                  <td style={{ textAlign: 'right', color: 'var(--muted)' }}>—</td>
+                </tr>
+              ))}
+              <tr style={{ background: 'var(--sawdust)', fontWeight: 600 }}>
+                <td colSpan={4} style={{ textAlign: 'right', fontSize: '.7rem', letterSpacing: '.1em', color: 'var(--muted)', textTransform: 'uppercase' }}>
+                  Materials subtotal
+                </td>
+                <td className="currency">{fmtMoney(totals.materials_raw)}</td>
+                <td colSpan={2} />
+              </tr>
+            </tbody>
+          </table>
+        </div>
       )}
+
+      {/* Hardware */}
+      {hardware.length > 0 && (
+        <div className="table-wrap" style={{ marginBottom: 24 }}>
+          <div className="table-toolbar">
+            <span className="ttitle">Hardware</span>
+          </div>
+          <table className="std-table">
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th style={{ textAlign: 'right' }}>Total Qty</th>
+                <th>UOM</th>
+                <th style={{ textAlign: 'right' }}>Unit Price</th>
+                <th style={{ textAlign: 'right' }}>Cost Allowed</th>
+                <th style={{ textAlign: 'right' }}>Actual Order</th>
+                <th style={{ textAlign: 'right' }}>Variance</th>
+              </tr>
+            </thead>
+            <tbody>
+              {hardware.map((r, i) => (
+                <tr key={i}>
+                  <td>{r.product}</td>
+                  <td style={{ textAlign: 'right', fontWeight: 500 }}>{fmtQty(r.total_qty)}</td>
+                  <td>{r.unit_of_measure || '—'}</td>
+                  <td className="currency">{fmtMoney(r.price)}</td>
+                  <td className="currency"><strong>{fmtMoney(r.total_cost_allowed)}</strong></td>
+                  <td style={{ textAlign: 'right', color: 'var(--muted)' }}>—</td>
+                  <td style={{ textAlign: 'right', color: 'var(--muted)' }}>—</td>
+                </tr>
+              ))}
+              <tr style={{ background: 'var(--sawdust)', fontWeight: 600 }}>
+                <td colSpan={4} style={{ textAlign: 'right', fontSize: '.7rem', letterSpacing: '.1em', color: 'var(--muted)', textTransform: 'uppercase' }}>
+                  Hardware subtotal
+                </td>
+                <td className="currency">{fmtMoney(totals.hardware)}</td>
+                <td colSpan={2} />
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Labour */}
+      <div className="table-wrap" style={{ marginBottom: 32 }}>
+        <div className="table-toolbar">
+          <span className="ttitle">Labour</span>
+          <span style={{ marginLeft: 'auto', fontSize: '.68rem', color: 'var(--muted)' }}>
+            @ ${LABOUR_RATE}/hr
+          </span>
+        </div>
+        <table className="std-table">
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th style={{ textAlign: 'right' }}>Total Hours</th>
+              <th style={{ textAlign: 'right' }}>Rate</th>
+              <th style={{ textAlign: 'right' }}>Cost Allowed</th>
+              <th style={{ textAlign: 'right' }}>Actual Cost</th>
+              <th style={{ textAlign: 'right' }}>Variance</th>
+            </tr>
+          </thead>
+          <tbody>
+            {labourRows.map(({ label, field }) => (
+              <tr key={field}>
+                <td>{label}</td>
+                <td style={{ textAlign: 'right', fontWeight: 500 }}>{fmtQty(labour[field])}</td>
+                <td className="currency">{fmtMoney(LABOUR_RATE)}</td>
+                <td className="currency"><strong>{fmtMoney(labour[field] * LABOUR_RATE)}</strong></td>
+                <td style={{ textAlign: 'right', color: 'var(--muted)' }}>—</td>
+                <td style={{ textAlign: 'right', color: 'var(--muted)' }}>—</td>
+              </tr>
+            ))}
+            <tr style={{ background: 'var(--sawdust)', fontWeight: 600 }}>
+              <td colSpan={3} style={{ textAlign: 'right', fontSize: '.7rem', letterSpacing: '.1em', color: 'var(--muted)', textTransform: 'uppercase' }}>
+                Labour subtotal
+              </td>
+              <td className="currency">{fmtMoney(totals.labour)}</td>
+              <td colSpan={2} />
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      {/* Cost summary */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <div className={styles.budgetSummary}>
+          <div className={styles.budgetSummaryTitle}>Project Cost Summary</div>
+
+          <div className={styles.budgetSummaryRow}>
+            <span>Materials</span>
+            <strong>{fmtMoney(totals.materials)}</strong>
+          </div>
+          <div className={styles.budgetSummaryRow}>
+            <span>Hardware</span>
+            <strong>{fmtMoney(totals.hardware)}</strong>
+          </div>
+          <div className={`${styles.budgetSummaryRow} ${styles.budgetSubline}`}>
+            <span>Labour</span>
+            <strong>{fmtMoney(totals.labour)}</strong>
+          </div>
+          <div className={styles.budgetSummaryRow}>
+            <span>Total costs</span>
+            <strong>{fmtMoney(totals.costs_total)}</strong>
+          </div>
+          <div className={`${styles.budgetSummaryRow} ${styles.budgetSummarySubtotal}`}>
+            <span>Profit margin ({(margin * 100).toFixed(0)}%)</span>
+            <strong>{fmtMoney(totals.margin_amount)}</strong>
+          </div>
+          <div className={styles.budgetSummaryRow}>
+            <span>Subtotal (ex GST)</span>
+            <strong>{fmtMoney(totals.subtotal)}</strong>
+          </div>
+          <div className={styles.budgetSummaryRow}>
+            <span>GST (10%)</span>
+            <strong>{fmtMoney(totals.gst)}</strong>
+          </div>
+          <div className={`${styles.budgetSummaryRow} ${styles.budgetSummaryGrand}`}>
+            <span>Total (incl. GST)</span>
+            <strong>{fmtMoney(totals.total)}</strong>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

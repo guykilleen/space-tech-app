@@ -13,10 +13,13 @@ const EMPTY_LINE = () => ({
   price_list_id: null, category: 'Materials',
   product: '', price: 0, unit_of_measure: '', quantity: 0,
 });
+const LABOUR_RATE = 100;
+
 const EMPTY_UNIT = (n) => ({
   _key: tempId(), id: null,
   unit_number: n, drawing_number: '', room_number: '',
   level: '', description: '', quantity: 1,
+  admin_hours: 0, cnc_hours: 0, edgebander_hours: 0, assembly_hours: 0,
   lines: [EMPTY_LINE()],
 });
 
@@ -29,9 +32,11 @@ function unitCalc(unit, margin) {
     l.category === 'Materials' ? s + (Number(l.price) * Number(l.quantity)) : s, 0);
   const hwSub = unit.lines.reduce((s, l) =>
     l.category === 'Hardware' ? s + (Number(l.price) * Number(l.quantity)) : s, 0);
-  const unitCost  = matSub * (1 + Number(margin)) + hwSub;
+  const labourSub = (Number(unit.admin_hours) + Number(unit.cnc_hours) +
+                     Number(unit.edgebander_hours) + Number(unit.assembly_hours)) * LABOUR_RATE;
+  const unitCost  = (matSub + hwSub + labourSub) * (1 + Number(margin) / 100);
   const unitTotal = unitCost * Number(unit.quantity);
-  return { matSub, hwSub, unitCost, unitTotal };
+  return { matSub, hwSub, labourSub, unitCost, unitTotal };
 }
 
 export default function QBQuoteBuilderPage() {
@@ -51,7 +56,7 @@ export default function QBQuoteBuilderPage() {
     client_id:    '',
     project:      searchParams.get('project') || '',
     prepared_by:  '',
-    margin:       0.10,
+    margin:       10,
     status:       'draft',
     notes:        '',
   });
@@ -95,13 +100,17 @@ export default function QBQuoteBuilderPage() {
           client_id:    q.client_id || '',
           project:      q.project || '',
           prepared_by:  q.prepared_by || '',
-          margin:       q.margin ?? 0.10,
+          margin:       (q.margin ?? 0.10) * 100,
           status:       q.status,
           notes:        q.notes || '',
         });
         setUnits(q.units.map(u => ({
           ...u,
           _key: u.id,
+          admin_hours:      u.admin_hours      ?? 0,
+          cnc_hours:        u.cnc_hours        ?? 0,
+          edgebander_hours: u.edgebander_hours ?? 0,
+          assembly_hours:   u.assembly_hours   ?? 0,
           lines: (u.lines || []).map(l => ({ ...l, _key: l.id })),
         })));
         deletedUnitIds.current = [];
@@ -184,17 +193,21 @@ export default function QBQuoteBuilderPage() {
     try {
       const body = {
         ...header,
-        margin:            Number(header.margin),
+        margin:            Number(header.margin) / 100,
         client_id:         header.client_id || null,
         units:             units.map((u, i) => ({
-          id:             u.id || undefined,
-          unit_number:    u.unit_number,
-          drawing_number: u.drawing_number,
-          room_number:    u.room_number,
-          level:          u.level,
-          description:    u.description,
-          quantity:       Number(u.quantity),
-          sort_order:     i,
+          id:               u.id || undefined,
+          unit_number:      u.unit_number,
+          drawing_number:   u.drawing_number,
+          room_number:      u.room_number,
+          level:            u.level,
+          description:      u.description,
+          quantity:         Number(u.quantity),
+          sort_order:       i,
+          admin_hours:      Number(u.admin_hours)      || 0,
+          cnc_hours:        Number(u.cnc_hours)        || 0,
+          edgebander_hours: Number(u.edgebander_hours) || 0,
+          assembly_hours:   Number(u.assembly_hours)   || 0,
           lines:          u.lines.map((l, j) => ({
             id:             l.id || undefined,
             price_list_id:  l.price_list_id || null,
@@ -288,7 +301,7 @@ export default function QBQuoteBuilderPage() {
           <div className="field">
             <label>Margin (%)</label>
             <input
-              type="number" step="0.01" min="0" max="1"
+              type="number" step="1" min="0" max="100"
               value={header.margin}
               onChange={e => setH('margin', e.target.value)}
             />
@@ -323,7 +336,7 @@ export default function QBQuoteBuilderPage() {
 
       {/* ── Units ── */}
       {units.map((unit, ui) => {
-        const { matSub, hwSub, unitTotal } = unitCalc(unit, margin);
+        const { matSub, hwSub, labourSub, unitTotal } = unitCalc(unit, margin);
         return (
           <div key={unit._key} className={styles.unitCard}>
             <div className={styles.unitCardHeader}>
@@ -449,11 +462,35 @@ export default function QBQuoteBuilderPage() {
               </tbody>
             </table>
 
+            {/* Labour hours */}
+            <div className={styles.labourSection}>
+              <div className={styles.labourTitle}>Labour Hours <span>@ ${LABOUR_RATE}/hr</span></div>
+              <div className={styles.labourRow}>
+                {[
+                  ['admin_hours',      'Admin'],
+                  ['cnc_hours',        'CNC'],
+                  ['edgebander_hours', 'Edgebander'],
+                  ['assembly_hours',   'Assembly'],
+                ].map(([field, label]) => (
+                  <div key={field} className={styles.labourField}>
+                    <label>{label}</label>
+                    <input
+                      type="number" min="0" step="0.5"
+                      value={unit[field]}
+                      onChange={e => setUnit(unit._key, field, e.target.value)}
+                    />
+                    <span className={styles.labourCost}>{fmtMoney(Number(unit[field]) * LABOUR_RATE)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <div className={styles.unitFooter}>
               <button className={styles.addLineBtn} onClick={() => addLine(unit._key)}>+ Add Line</button>
               <div className={styles.unitTotals}>
                 <span>Materials sub: <strong>{fmtMoney(matSub)}</strong></span>
                 <span>Hardware sub: <strong>{fmtMoney(hwSub)}</strong></span>
+                <span>Labour: <strong>{fmtMoney(labourSub)}</strong></span>
                 <span>Unit cost × {unit.quantity}: <strong>{fmtMoney(unitTotal)}</strong></span>
               </div>
             </div>
