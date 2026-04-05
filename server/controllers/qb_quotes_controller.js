@@ -64,7 +64,7 @@ async function getAll(req, res) {
         c.company AS client_company,
         (
           SELECT COALESCE(SUM(
-            (COALESCE(m.s, 0) + COALESCE(w.s, 0) +
+            (COALESCE(m.s, 0) * (1 + h.waste_pct) + COALESCE(w.s, 0) +
              (u.admin_hours + u.cnc_hours + u.edgebander_hours + u.assembly_hours) * 100
             ) * (1 + h.margin) * u.quantity
           ), 0)
@@ -110,7 +110,7 @@ async function getOne(req, res) {
 //     deleted_line_ids: [] }
 async function _upsertFull(quoteId, body, client) {
   const {
-    quote_number, date, project, prepared_by, margin, status, notes,
+    quote_number, date, project, prepared_by, margin, waste_pct, status, notes,
     client_id,
     units = [],
     deleted_unit_ids = [],
@@ -122,18 +122,19 @@ async function _upsertFull(quoteId, body, client) {
     await client.query(
       `UPDATE qb_quote_headers
        SET quote_number=$1, date=$2, client_id=$3, project=$4, prepared_by=$5,
-           margin=$6, status=$7, notes=$8
-       WHERE id=$9`,
+           margin=$6, status=$7, notes=$8, waste_pct=$9
+       WHERE id=$10`,
       [quote_number, date || new Date(), client_id || null, project || null,
-       prepared_by || null, margin ?? 0.10, status || 'draft', notes || null, quoteId]
+       prepared_by || null, margin ?? 0.10, status || 'draft', notes || null,
+       waste_pct ?? 0.05, quoteId]
     );
   } else {
     // INSERT header
     const { rows: [h] } = await client.query(
-      `INSERT INTO qb_quote_headers (quote_number, date, client_id, project, prepared_by, margin, status, notes)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`,
+      `INSERT INTO qb_quote_headers (quote_number, date, client_id, project, prepared_by, margin, waste_pct, status, notes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
       [quote_number, date || new Date(), client_id || null, project || null,
-       prepared_by || null, margin ?? 0.10, status || 'draft', notes || null]
+       prepared_by || null, margin ?? 0.10, waste_pct ?? 0.05, status || 'draft', notes || null]
     );
     quoteId = h.id;
   }
@@ -287,7 +288,7 @@ async function remove(req, res) {
 async function getSummary(req, res) {
   try {
     const { rows: [header] } = await pool.query(
-      `SELECT h.margin, c.name AS client_name, c.company, h.quote_number, h.date, h.project, h.prepared_by
+      `SELECT h.margin, h.waste_pct, c.name AS client_name, c.company, h.quote_number, h.date, h.project, h.prepared_by
        FROM qb_quote_headers h LEFT JOIN qb_contacts c ON h.client_id = c.id
        WHERE h.id = $1`,
       [req.params.id]
@@ -313,14 +314,15 @@ async function getSummary(req, res) {
       [req.params.id]
     );
 
-    const margin = Number(header.margin);
+    const margin   = Number(header.margin);
+    const wastePct = Number(header.waste_pct);
     let subtotal = 0;
     const rows = units.map(u => {
       const matSub    = Number(u.mat_sub);
       const hwSub     = Number(u.hw_sub);
       const labourSub = (Number(u.admin_hours) + Number(u.cnc_hours) +
                          Number(u.edgebander_hours) + Number(u.assembly_hours)) * 100;
-      const unitCost  = (matSub + hwSub + labourSub) * (1 + margin);
+      const unitCost  = (matSub * (1 + wastePct) + hwSub + labourSub) * (1 + margin);
       const total     = unitCost * Number(u.quantity);
       subtotal += total;
       return { ...u, labour_sub: labourSub, unit_cost: unitCost, total };
@@ -339,7 +341,7 @@ async function getSummary(req, res) {
 async function getBudgetQty(req, res) {
   try {
     const { rows: [header] } = await pool.query(
-      `SELECT margin FROM qb_quote_headers WHERE id = $1`,
+      `SELECT margin, waste_pct FROM qb_quote_headers WHERE id = $1`,
       [req.params.id]
     );
     if (!header) return res.status(404).json({ error: 'Not found' });
@@ -372,6 +374,7 @@ async function getBudgetQty(req, res) {
     `, [req.params.id]);
 
     const margin      = Number(header.margin);
+    const wastePct    = Number(header.waste_pct);
     const matRaw      = lines.filter(l => l.category === 'Materials')
                              .reduce((s, l) => s + Number(l.total_cost_allowed), 0);
     const hwTotal     = lines.filter(l => l.category === 'Hardware')
@@ -384,7 +387,9 @@ async function getBudgetQty(req, res) {
     };
     const labourTotal    = (labourHrs.admin_hours + labourHrs.cnc_hours +
                             labourHrs.edgebander_hours + labourHrs.assembly_hours) * 100;
-    const costsTotal     = matRaw + hwTotal + labourTotal;
+    const wasteAmount    = matRaw * wastePct;
+    const matWithWaste   = matRaw + wasteAmount;
+    const costsTotal     = matWithWaste + hwTotal + labourTotal;
     const marginAmount   = costsTotal * margin;
     const subtotal       = costsTotal + marginAmount;
     const gst            = subtotal * 0.10;
@@ -392,14 +397,17 @@ async function getBudgetQty(req, res) {
 
     res.json({
       margin,
+      waste_pct: wastePct,
       lines,
       labour: labourHrs,
       totals: {
-        materials:     matRaw,
-        hardware:      hwTotal,
-        labour:        labourTotal,
-        costs_total:   costsTotal,
-        margin_amount: marginAmount,
+        materials_raw:   matRaw,
+        waste_amount:    wasteAmount,
+        materials:       matWithWaste,
+        hardware:        hwTotal,
+        labour:          labourTotal,
+        costs_total:     costsTotal,
+        margin_amount:   marginAmount,
         subtotal,
         gst,
         total,
@@ -425,12 +433,13 @@ async function getPdf(req, res) {
     // Build summary data
     const margin = Number(quote.margin);
     let subtotal = 0;
-    const unitRows = quote.units.map(u => {
+    const wastePct  = Number(quote.waste_pct);
+    const unitRows  = quote.units.map(u => {
       const matSub    = u.lines.filter(l => l.category === 'Materials').reduce((s, l) => s + Number(l.total), 0);
       const hwSub     = u.lines.filter(l => l.category === 'Hardware').reduce((s, l) => s + Number(l.total), 0);
       const labourSub = (Number(u.admin_hours) + Number(u.cnc_hours) +
                          Number(u.edgebander_hours) + Number(u.assembly_hours)) * 100;
-      const unitCost  = (matSub + hwSub + labourSub) * (1 + margin);
+      const unitCost  = (matSub * (1 + wastePct) + hwSub + labourSub) * (1 + margin);
       const total     = unitCost * Number(u.quantity);
       subtotal += total;
       return { ...u, unit_cost: unitCost, total };

@@ -37,7 +37,7 @@ export default function QBBudgetQtyPage() {
     <div className={styles.loadingMsg}>Loading…</div>
   );
 
-  const { margin, lines, labour, totals } = data;
+  const { margin, waste_pct, lines, labour, totals } = data;
   const materials = lines.filter(r => r.category === 'Materials');
   const hardware  = lines.filter(r => r.category === 'Hardware');
 
@@ -192,7 +192,15 @@ export default function QBBudgetQtyPage() {
           <div className={styles.budgetSummaryTitle}>Project Cost Summary</div>
 
           <div className={styles.budgetSummaryRow}>
-            <span>Materials</span>
+            <span>Materials (raw)</span>
+            <strong>{fmtMoney(totals.materials_raw)}</strong>
+          </div>
+          <div className={styles.budgetSummaryRow}>
+            <span>Waste ({(waste_pct * 100).toFixed(0)}%)</span>
+            <strong>{fmtMoney(totals.waste_amount)}</strong>
+          </div>
+          <div className={`${styles.budgetSummaryRow} ${styles.budgetSubline}`}>
+            <span>Materials inc. waste</span>
             <strong>{fmtMoney(totals.materials)}</strong>
           </div>
           <div className={styles.budgetSummaryRow}>

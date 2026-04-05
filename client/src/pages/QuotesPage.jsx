@@ -4,7 +4,6 @@ import { toast } from 'react-toastify';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import JobCreateModal from '../components/JobCreateModal';
-import ImportPanel from '../components/ImportPanel';
 import styles from './Page.module.css';
 
 const STATUSES = ['pending','review','accepted','declined'];
@@ -113,9 +112,6 @@ export default function QuotesPage() {
 
   return (
     <div className={styles.page}>
-
-      {/* ── Import Panel ── */}
-      <ImportPanel onImported={load} />
 
       {/* ── New Quote Form ── */}
       <div className="section-header">

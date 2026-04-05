@@ -11,7 +11,8 @@
     "db:seed": "node db/seed.js",
     "db:qb-migrate": "node db/qb_migrate.js",
     "db:qb-seed-prices": "node db/qb_seed_prices.js",
-    "db:qb-migrate-labour": "node db/qb_migrate_labour.js"
+    "db:qb-migrate-labour": "node db/qb_migrate_labour.js",
+    "db:qb-migrate-waste": "node db/qb_migrate_waste.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

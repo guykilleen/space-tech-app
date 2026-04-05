@@ -27,16 +27,17 @@ function fmtMoney(v) {
   return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(v || 0);
 }
 
-function unitCalc(unit, margin) {
+function unitCalc(unit, margin, wastePct) {
   const matSub = unit.lines.reduce((s, l) =>
     l.category === 'Materials' ? s + (Number(l.price) * Number(l.quantity)) : s, 0);
   const hwSub = unit.lines.reduce((s, l) =>
     l.category === 'Hardware' ? s + (Number(l.price) * Number(l.quantity)) : s, 0);
   const labourSub = (Number(unit.admin_hours) + Number(unit.cnc_hours) +
                      Number(unit.edgebander_hours) + Number(unit.assembly_hours)) * LABOUR_RATE;
-  const unitCost  = (matSub + hwSub + labourSub) * (1 + Number(margin) / 100);
+  const wasteSub  = matSub * (Number(wastePct) / 100);
+  const unitCost  = (matSub + wasteSub + hwSub + labourSub) * (1 + Number(margin) / 100);
   const unitTotal = unitCost * Number(unit.quantity);
-  return { matSub, hwSub, labourSub, unitCost, unitTotal };
+  return { matSub, wasteSub, hwSub, labourSub, unitCost, unitTotal };
 }
 
 export default function QBQuoteBuilderPage() {
@@ -57,6 +58,7 @@ export default function QBQuoteBuilderPage() {
     project:      searchParams.get('project') || '',
     prepared_by:  '',
     margin:       10,
+    waste_pct:    5,
     status:       'draft',
     notes:        '',
   });
@@ -101,6 +103,7 @@ export default function QBQuoteBuilderPage() {
           project:      q.project || '',
           prepared_by:  q.prepared_by || '',
           margin:       (q.margin ?? 0.10) * 100,
+          waste_pct:    (q.waste_pct ?? 0.05) * 100,
           status:       q.status,
           notes:        q.notes || '',
         });
@@ -194,6 +197,7 @@ export default function QBQuoteBuilderPage() {
       const body = {
         ...header,
         margin:            Number(header.margin) / 100,
+        waste_pct:         Number(header.waste_pct) / 100,
         client_id:         header.client_id || null,
         units:             units.map((u, i) => ({
           id:               u.id || undefined,
@@ -249,7 +253,8 @@ export default function QBQuoteBuilderPage() {
 
   // ── Derived totals ──────────────────────────────────────────────────────
   const margin    = Number(header.margin);
-  const subtotal  = units.reduce((s, u) => s + unitCalc(u, margin).unitTotal, 0);
+  const wastePct  = Number(header.waste_pct);
+  const subtotal  = units.reduce((s, u) => s + unitCalc(u, margin, wastePct).unitTotal, 0);
   const gst       = subtotal * 0.10;
   const totalIncl = subtotal + gst;
 
@@ -306,6 +311,14 @@ export default function QBQuoteBuilderPage() {
               onChange={e => setH('margin', e.target.value)}
             />
           </div>
+          <div className="field">
+            <label>Material Waste (%)</label>
+            <input
+              type="number" step="1" min="0" max="100"
+              value={header.waste_pct}
+              onChange={e => setH('waste_pct', e.target.value)}
+            />
+          </div>
 
           <div className="field span-2">
             <label>Client</label>
@@ -336,7 +349,7 @@ export default function QBQuoteBuilderPage() {
 
       {/* ── Units ── */}
       {units.map((unit, ui) => {
-        const { matSub, hwSub, labourSub, unitTotal } = unitCalc(unit, margin);
+        const { matSub, wasteSub, hwSub, labourSub, unitTotal } = unitCalc(unit, margin, wastePct);
         return (
           <div key={unit._key} className={styles.unitCard}>
             <div className={styles.unitCardHeader}>
@@ -488,8 +501,9 @@ export default function QBQuoteBuilderPage() {
             <div className={styles.unitFooter}>
               <button className={styles.addLineBtn} onClick={() => addLine(unit._key)}>+ Add Line</button>
               <div className={styles.unitTotals}>
-                <span>Materials sub: <strong>{fmtMoney(matSub)}</strong></span>
-                <span>Hardware sub: <strong>{fmtMoney(hwSub)}</strong></span>
+                <span>Materials: <strong>{fmtMoney(matSub)}</strong></span>
+                <span>Waste: <strong>{fmtMoney(wasteSub)}</strong></span>
+                <span>Hardware: <strong>{fmtMoney(hwSub)}</strong></span>
                 <span>Labour: <strong>{fmtMoney(labourSub)}</strong></span>
                 <span>Unit cost × {unit.quantity}: <strong>{fmtMoney(unitTotal)}</strong></span>
               </div>
