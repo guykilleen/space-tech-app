@@ -2,11 +2,11 @@
 
 .header {
   background: var(--dark);
-  padding: 18px 48px;
+  padding: 10px 48px;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
-  border-bottom: 4px solid var(--oak);
+  border-bottom: 3px solid var(--oak);
   position: sticky;
   top: 0;
   z-index: 100;
@@ -19,11 +19,11 @@
   pointer-events: none;
 }
 
-.logoMark { font-family: 'DM Mono', monospace; font-size: 1.5rem; letter-spacing: .12em; text-transform: uppercase; line-height: 1.2; font-weight: 500; }
+.logoMark { font-family: 'DM Mono', monospace; font-size: 1.2rem; letter-spacing: .12em; text-transform: uppercase; line-height: 1; font-weight: 500; }
 .logoSpace { color: var(--white); }
 .logoTech  { color: var(--oak); }
-.logoDesign { color: var(--muted); font-size: 1.1rem; letter-spacing: .3em; }
-.logoSub  { font-size: .62rem; color: var(--muted); letter-spacing: .25em; text-transform: uppercase; font-weight: 300; margin-top: 4px; }
+.logoDesign { color: var(--muted); font-size: .9rem; letter-spacing: .3em; }
+.logoSub  { font-size: .58rem; color: var(--muted); letter-spacing: .22em; text-transform: uppercase; font-weight: 300; margin-top: 3px; }
 
 .headerMeta { text-align: right; font-size: .68rem; color: var(--muted); letter-spacing: .1em; line-height: 2; }
 
@@ -47,9 +47,9 @@
 
 .tabBtn {
   background: none; border: none; color: var(--oak-light);
-  font-family: 'DM Mono', monospace; font-size: .72rem;
+  font-family: 'DM Mono', monospace; font-size: .68rem;
   letter-spacing: .15em; text-transform: uppercase;
-  padding: 16px 28px; cursor: pointer;
+  padding: 10px 24px; cursor: pointer;
   border-bottom: 3px solid transparent;
   transition: all .2s; opacity: .65;
   display: inline-block;
@@ -67,7 +67,7 @@
   padding: 0 48px;
   gap: 4px;
   position: sticky;
-  top: 88px;
+  top: 56px;
   z-index: 100;
 }
 
@@ -77,10 +77,10 @@
   border-bottom: 2px solid transparent;
   color: var(--muted);
   font-family: 'DM Mono', monospace;
-  font-size: .58rem;
-  letter-spacing: .25em;
+  font-size: .55rem;
+  letter-spacing: .22em;
   text-transform: uppercase;
-  padding: 10px 20px;
+  padding: 6px 18px;
   cursor: pointer;
   transition: all .2s;
   opacity: .55;
@@ -93,13 +93,13 @@
   cursor: default;
 }
 
-/* shift page nav below the switcher bar */
-.nav { top: 121px; }
+/* shift page nav below the switcher bar — header ~56px + switcher ~24px */
+.nav { top: 80px; }
 
 /* ── Mobile ─────────────────────────────────────────────── */
 @media (max-width: 640px) {
   .header {
-    padding: 12px 16px;
+    padding: 8px 16px;
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
@@ -111,16 +111,16 @@
   .headerMeta { display: none; }
 
   .appSwitcher {
-    top: 56px;
+    top: 46px;
     padding: 0 12px;
   }
   .switchBtn {
-    padding: 10px 14px;
-    font-size: .55rem;
+    padding: 6px 12px;
+    font-size: .52rem;
   }
 
   .nav {
-    top: 94px;
+    top: 68px;
     padding: 0 4px;
     overflow-x: auto;
     flex-wrap: nowrap;
@@ -130,8 +130,8 @@
   .nav::-webkit-scrollbar { display: none; }
 
   .tabBtn {
-    padding: 14px 16px;
-    font-size: .65rem;
+    padding: 10px 14px;
+    font-size: .62rem;
     white-space: nowrap;
     flex-shrink: 0;
   }
