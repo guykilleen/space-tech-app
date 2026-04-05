@@ -382,6 +382,7 @@ export default function QBQuoteBuilderPage() {
             </div>
 
             {/* Lines table */}
+            <div className={styles.linesTableWrap}>
             <table className={styles.linesTable}>
               <thead>
                 <tr>
@@ -474,6 +475,8 @@ export default function QBQuoteBuilderPage() {
                 ))}
               </tbody>
             </table>
+
+            </div>
 
             {/* Labour hours */}
             <div className={styles.labourSection}>

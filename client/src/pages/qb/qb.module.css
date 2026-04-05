@@ -367,3 +367,68 @@
   font-size: 1.25rem;
   color: var(--oak);
 }
+
+/* ── Mobile ──────────────────────────────────────────────── */
+@media (max-width: 640px) {
+
+  /* Builder page */
+  .builderPage { padding: 20px 14px 48px; }
+
+  .builderHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    margin-bottom: 20px;
+    padding-bottom: 14px;
+    gap: 14px;
+  }
+  .builderTitle { font-size: 1.4rem; }
+  .builderActions { width: 100%; justify-content: flex-start; flex-wrap: wrap; }
+  .builderActions .btn, .builderActions a.btn {
+    flex: 1;
+    text-align: center;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Unit card */
+  .unitCard { margin-bottom: 16px; }
+  .unitCardHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 14px 14px 12px;
+    gap: 10px;
+  }
+  .unitMeta { gap: 10px; }
+  .unitField { min-width: 0; flex: 1 1 calc(50% - 5px); }
+  .removeUnit { position: absolute; top: 12px; right: 12px; }
+
+  /* Lines table — horizontal scroll */
+  .linesTableWrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .linesTable { min-width: 520px; }
+  .linesTable th { padding: 8px 10px; }
+  .linesTable td { padding: 6px 6px; }
+
+  /* Labour section */
+  .labourSection { padding: 14px; }
+  .labourRow { gap: 10px; }
+  .labourField { flex: 1 1 calc(50% - 5px); min-width: 0; }
+
+  /* Unit footer */
+  .unitFooter { flex-direction: column; align-items: flex-start; gap: 10px; padding: 12px 14px; }
+  .unitTotals { flex-direction: column; gap: 6px; }
+  .addLineBtn { width: 100%; text-align: center; padding: 12px; min-height: 44px; }
+
+  /* Add unit */
+  .addUnitBtn { padding: 18px; min-height: 56px; }
+
+  /* Quote totals */
+  .quoteTotals { width: 100%; padding: 20px; }
+
+  /* Budget summary */
+  .budgetSummary { min-width: unset; width: 100%; padding: 20px 16px; margin-bottom: 32px; }
+}

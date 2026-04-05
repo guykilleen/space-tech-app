@@ -95,3 +95,44 @@
 
 /* shift page nav below the switcher bar */
 .nav { top: 121px; }
+
+/* ── Mobile ─────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .header {
+    padding: 12px 16px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0;
+  }
+  .logoMark { font-size: 1.1rem; letter-spacing: .08em; }
+  .logoDesign { font-size: .85rem; }
+  .logoSub { display: none; }
+  .headerMeta { display: none; }
+
+  .appSwitcher {
+    top: 56px;
+    padding: 0 12px;
+  }
+  .switchBtn {
+    padding: 10px 14px;
+    font-size: .55rem;
+  }
+
+  .nav {
+    top: 94px;
+    padding: 0 4px;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .nav::-webkit-scrollbar { display: none; }
+
+  .tabBtn {
+    padding: 14px 16px;
+    font-size: .65rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+}

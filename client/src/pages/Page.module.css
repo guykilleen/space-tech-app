@@ -7,3 +7,8 @@
 .pageFull {
   padding: 24px 40px 40px;
 }
+
+@media (max-width: 640px) {
+  .page    { padding: 20px 14px 48px; }
+  .pageFull{ padding: 16px 14px 40px; }
+}
