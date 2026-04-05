@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run:*)",
+      "Bash(npm install:*)",
+      "Bash(node -e \"require\\('puppeteer'\\); console.log\\('puppeteer ok'\\)\")",
+      "Bash(node -e ':*)",
+      "Bash(node db/qb_seed_prices.js)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5000/api/health)",
+      "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_BSx2qEg7frXi@ep-jolly-glade-anusmg02-pooler.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require\" node server/db/qb_seed_prices.js)",
+      "Bash(node server/db/qb_migrate_labour.js)",
+      "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_BSx2qEg7frXi@ep-jolly-glade-anusmg02-pooler.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require\" node server/db/qb_migrate_labour.js)",
+      "Bash(node db/qb_migrate_labour.js)",
+      "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_BSx2qEg7frXi@ep-jolly-glade-anusmg02-pooler.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require\" node server/db/qb_migrate_waste.js)",
+      "Bash(npm test:*)"
+    ]
+  }
+}

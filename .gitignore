@@ -4,6 +4,7 @@ server/node_modules/
 client/build/
 .env
 server/.env
+server/.env.test
 *.log
 build/
 dist/

@@ -12,7 +12,8 @@
     "db:qb-migrate": "node db/qb_migrate.js",
     "db:qb-seed-prices": "node db/qb_seed_prices.js",
     "db:qb-migrate-labour": "node db/qb_migrate_labour.js",
-    "db:qb-migrate-waste": "node db/qb_migrate_waste.js"
+    "db:qb-migrate-waste": "node db/qb_migrate_waste.js",
+    "test": "jest --runInBand"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -27,6 +28,8 @@
     "puppeteer": "^24.40.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.0"
+    "jest": "^30.3.0",
+    "nodemon": "^3.1.0",
+    "supertest": "^7.2.2"
   }
 }
