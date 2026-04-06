@@ -13,28 +13,39 @@ const EMPTY_LINE = () => ({
   price_list_id: null, category: 'Materials',
   product: '', price: 0, unit_of_measure: '', quantity: 0,
 });
-const LABOUR_RATE = 100;
 
 const EMPTY_UNIT = (n) => ({
   _key: tempId(), id: null,
   unit_number: n, drawing_number: '', room_number: '',
   level: '', description: '', quantity: 1,
   admin_hours: 0, cnc_hours: 0, edgebander_hours: 0, assembly_hours: 0,
+  delivery_hours: 0, installation_hours: 0,
   lines: [EMPTY_LINE()],
 });
+
+const LABOUR_FIELDS = [
+  { hoursField: 'admin_hours',        rateField: 'admin_rate',        type: 'admin',        label: 'Admin' },
+  { hoursField: 'cnc_hours',          rateField: 'cnc_rate',          type: 'cnc',          label: 'CNC' },
+  { hoursField: 'edgebander_hours',   rateField: 'edgebander_rate',   type: 'edgebander',   label: 'Edgebander' },
+  { hoursField: 'assembly_hours',     rateField: 'assembly_rate',     type: 'assembly',      label: 'Assembly' },
+  { hoursField: 'delivery_hours',     rateField: 'delivery_rate',     type: 'delivery',     label: 'Delivery' },
+  { hoursField: 'installation_hours', rateField: 'installation_rate', type: 'installation', label: 'Installation' },
+];
 
 function fmtMoney(v) {
   return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(v || 0);
 }
 
-function unitCalc(unit, margin, wastePct) {
-  const matSub = unit.lines.reduce((s, l) =>
+// Use per-unit stored rate snapshot for existing units; fall back to current global rates for new units
+function unitCalc(unit, margin, wastePct, labourRates) {
+  const R = (rateField, type) => Number(unit[rateField] ?? labourRates[type] ?? 100);
+  const matSub    = unit.lines.reduce((s, l) =>
     l.category === 'Materials' ? s + (Number(l.price) * Number(l.quantity)) : s, 0);
-  const hwSub = unit.lines.reduce((s, l) =>
-    l.category === 'Hardware' ? s + (Number(l.price) * Number(l.quantity)) : s, 0);
-  const labourSub = (Number(unit.admin_hours) + Number(unit.cnc_hours) +
-                     Number(unit.edgebander_hours) + Number(unit.assembly_hours)) * LABOUR_RATE;
+  const hwSub     = unit.lines.reduce((s, l) =>
+    l.category === 'Hardware'  ? s + (Number(l.price) * Number(l.quantity)) : s, 0);
   const wasteSub  = matSub * (Number(wastePct) / 100);
+  const labourSub = LABOUR_FIELDS.reduce((s, { hoursField, rateField, type }) =>
+    s + Number(unit[hoursField] ?? 0) * R(rateField, type), 0);
   const unitCost  = (matSub + wasteSub + hwSub + labourSub) * (1 + Number(margin) / 100);
   const unitTotal = unitCost * Number(unit.quantity);
   return { matSub, wasteSub, hwSub, labourSub, unitCost, unitTotal };
@@ -48,6 +59,7 @@ export default function QBQuoteBuilderPage() {
 
   const [priceList,    setPriceList]    = useState([]);
   const [contacts,     setContacts]     = useState([]);
+  const [labourRates,  setLabourRates]  = useState({});
   const [saving,       setSaving]       = useState(false);
   const [loading,      setLoading]      = useState(!isNew);
   const [linkedQuoteId,   setLinkedQuoteId]   = useState(null);  // FK → quotes.id
@@ -72,12 +84,14 @@ export default function QBQuoteBuilderPage() {
   // ── Load reference data ─────────────────────────────────────────────────
   useEffect(() => {
     async function loadRef() {
-      const [pl, co] = await Promise.all([
+      const [pl, co, lr] = await Promise.all([
         api.get('/qb/price-list?active=true'),
         api.get('/qb/contacts'),
+        api.get('/qb/labour-rates'),
       ]);
       setPriceList(pl.data);
       setContacts(co.data);
+      setLabourRates(lr.data);
     }
     loadRef().catch(() => toast.error('Failed to load reference data'));
   }, []);
@@ -114,10 +128,12 @@ export default function QBQuoteBuilderPage() {
         setUnits(q.units.map(u => ({
           ...u,
           _key: u.id,
-          admin_hours:      u.admin_hours      ?? 0,
-          cnc_hours:        u.cnc_hours        ?? 0,
-          edgebander_hours: u.edgebander_hours ?? 0,
-          assembly_hours:   u.assembly_hours   ?? 0,
+          admin_hours:        u.admin_hours        ?? 0,
+          cnc_hours:          u.cnc_hours          ?? 0,
+          edgebander_hours:   u.edgebander_hours   ?? 0,
+          assembly_hours:     u.assembly_hours     ?? 0,
+          delivery_hours:     u.delivery_hours     ?? 0,
+          installation_hours: u.installation_hours ?? 0,
           lines: (u.lines || []).map(l => ({ ...l, _key: l.id })),
         })));
         deletedUnitIds.current = [];
@@ -211,11 +227,13 @@ export default function QBQuoteBuilderPage() {
           level:            u.level,
           description:      u.description,
           quantity:         Number(u.quantity),
-          sort_order:       i,
-          admin_hours:      Number(u.admin_hours)      || 0,
-          cnc_hours:        Number(u.cnc_hours)        || 0,
-          edgebander_hours: Number(u.edgebander_hours) || 0,
-          assembly_hours:   Number(u.assembly_hours)   || 0,
+          sort_order:         i,
+          admin_hours:        Number(u.admin_hours)        || 0,
+          cnc_hours:          Number(u.cnc_hours)          || 0,
+          edgebander_hours:   Number(u.edgebander_hours)   || 0,
+          assembly_hours:     Number(u.assembly_hours)     || 0,
+          delivery_hours:     Number(u.delivery_hours)     || 0,
+          installation_hours: Number(u.installation_hours) || 0,
           lines:          u.lines.map((l, j) => ({
             id:             l.id || undefined,
             price_list_id:  l.price_list_id || null,
@@ -258,7 +276,7 @@ export default function QBQuoteBuilderPage() {
   // ── Derived totals ──────────────────────────────────────────────────────
   const margin    = Number(header.margin);
   const wastePct  = Number(header.waste_pct);
-  const subtotal  = units.reduce((s, u) => s + unitCalc(u, margin, wastePct).unitTotal, 0);
+  const subtotal  = units.reduce((s, u) => s + unitCalc(u, margin, wastePct, labourRates).unitTotal, 0);
   const gst       = subtotal * 0.10;
   const totalIncl = subtotal + gst;
 
@@ -386,7 +404,7 @@ export default function QBQuoteBuilderPage() {
 
       {/* ── Units ── */}
       {units.map((unit, ui) => {
-        const { matSub, wasteSub, hwSub, labourSub, unitTotal } = unitCalc(unit, margin, wastePct);
+        const { matSub, wasteSub, hwSub, labourSub, unitTotal } = unitCalc(unit, margin, wastePct, labourRates);
         return (
           <div key={unit._key} className={styles.unitCard}>
             <div className={styles.unitCardHeader}>
@@ -517,24 +535,22 @@ export default function QBQuoteBuilderPage() {
 
             {/* Labour hours */}
             <div className={styles.labourSection}>
-              <div className={styles.labourTitle}>Labour Hours <span>@ ${LABOUR_RATE}/hr</span></div>
+              <div className={styles.labourTitle}>Labour Hours</div>
               <div className={styles.labourRow}>
-                {[
-                  ['admin_hours',      'Admin'],
-                  ['cnc_hours',        'CNC'],
-                  ['edgebander_hours', 'Edgebander'],
-                  ['assembly_hours',   'Assembly'],
-                ].map(([field, label]) => (
-                  <div key={field} className={styles.labourField}>
-                    <label>{label}</label>
-                    <input
-                      type="number" min="0" step="0.5"
-                      value={unit[field]}
-                      onChange={e => setUnit(unit._key, field, e.target.value)}
-                    />
-                    <span className={styles.labourCost}>{fmtMoney(Number(unit[field]) * LABOUR_RATE)}</span>
-                  </div>
-                ))}
+                {LABOUR_FIELDS.map(({ hoursField, rateField, type, label }) => {
+                  const rate = Number(unit[rateField] ?? labourRates[type] ?? 100);
+                  return (
+                    <div key={hoursField} className={styles.labourField}>
+                      <label>{label} <span className={styles.labourRateTag}>${rate}/hr</span></label>
+                      <input
+                        type="number" min="0" step="0.5"
+                        value={unit[hoursField] ?? 0}
+                        onChange={e => setUnit(unit._key, hoursField, e.target.value)}
+                      />
+                      <span className={styles.labourCost}>{fmtMoney(Number(unit[hoursField] ?? 0) * rate)}</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 

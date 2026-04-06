@@ -16,9 +16,10 @@ app.use('/api/quotes',         require('./routes/quotes'));
 app.use('/api/jobs',           require('./routes/jobs'));
 app.use('/api/import',         require('./routes/import'));
 // Quote Builder
-app.use('/api/qb/contacts',   require('./routes/qb_contacts'));
-app.use('/api/qb/price-list', require('./routes/qb_price_list'));
-app.use('/api/qb/quotes',     require('./routes/qb_quotes'));
+app.use('/api/qb/contacts',      require('./routes/qb_contacts'));
+app.use('/api/qb/price-list',    require('./routes/qb_price_list'));
+app.use('/api/qb/labour-rates',  require('./routes/qb_labour_rates'));
+app.use('/api/qb/quotes',        require('./routes/qb_quotes'));
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 

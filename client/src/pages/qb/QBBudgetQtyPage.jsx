@@ -4,8 +4,6 @@ import { toast } from 'react-toastify';
 import api from '../../utils/api';
 import styles from './qb.module.css';
 
-const LABOUR_RATE = 100;
-
 function fmtMoney(v) {
   return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(v || 0);
 }
@@ -42,10 +40,12 @@ export default function QBBudgetQtyPage() {
   const hardware  = lines.filter(r => r.category === 'Hardware');
 
   const labourRows = [
-    { label: 'Admin',       field: 'admin_hours' },
-    { label: 'CNC',         field: 'cnc_hours' },
-    { label: 'Edgebander',  field: 'edgebander_hours' },
-    { label: 'Assembly',    field: 'assembly_hours' },
+    { label: 'Admin',        hoursField: 'admin_hours',        costField: 'admin_cost' },
+    { label: 'CNC',          hoursField: 'cnc_hours',          costField: 'cnc_cost' },
+    { label: 'Edgebander',   hoursField: 'edgebander_hours',   costField: 'edgebander_cost' },
+    { label: 'Assembly',     hoursField: 'assembly_hours',     costField: 'assembly_cost' },
+    { label: 'Delivery',     hoursField: 'delivery_hours',     costField: 'delivery_cost' },
+    { label: 'Installation', hoursField: 'installation_hours', costField: 'installation_cost' },
   ];
 
   return (
@@ -149,28 +149,23 @@ export default function QBBudgetQtyPage() {
       <div className="table-wrap" style={{ marginBottom: 32 }}>
         <div className="table-toolbar">
           <span className="ttitle">Labour</span>
-          <span style={{ marginLeft: 'auto', fontSize: '.68rem', color: 'var(--muted)' }}>
-            @ ${LABOUR_RATE}/hr
-          </span>
         </div>
         <table className="std-table">
           <thead>
             <tr>
               <th>Type</th>
               <th style={{ textAlign: 'right' }}>Total Hours</th>
-              <th style={{ textAlign: 'right' }}>Rate</th>
               <th style={{ textAlign: 'right' }}>Cost Allowed</th>
               <th style={{ textAlign: 'right' }}>Actual Cost</th>
               <th style={{ textAlign: 'right' }}>Variance</th>
             </tr>
           </thead>
           <tbody>
-            {labourRows.map(({ label, field }) => (
-              <tr key={field}>
+            {labourRows.map(({ label, hoursField, costField }) => (
+              <tr key={hoursField}>
                 <td>{label}</td>
-                <td style={{ textAlign: 'right', fontWeight: 500 }}>{fmtQty(labour[field])}</td>
-                <td className="currency">{fmtMoney(LABOUR_RATE)}</td>
-                <td className="currency"><strong>{fmtMoney(labour[field] * LABOUR_RATE)}</strong></td>
+                <td style={{ textAlign: 'right', fontWeight: 500 }}>{fmtQty(labour[hoursField])}</td>
+                <td className="currency"><strong>{fmtMoney(labour[costField])}</strong></td>
                 <td style={{ textAlign: 'right', color: 'var(--muted)' }}>—</td>
                 <td style={{ textAlign: 'right', color: 'var(--muted)' }}>—</td>
               </tr>

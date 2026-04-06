@@ -191,6 +191,14 @@
   color: var(--charcoal);
 }
 
+/* Labour rate tag shown next to label */
+.labourRateTag {
+  font-size: .65rem;
+  color: var(--muted);
+  font-weight: 400;
+  margin-left: 4px;
+}
+
 /* Labour hours section */
 .labourSection {
   padding: 14px 20px;

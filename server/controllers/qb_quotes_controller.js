@@ -67,7 +67,9 @@ async function getAll(req, res) {
         (
           SELECT COALESCE(SUM(
             (COALESCE(m.s, 0) * (1 + h.waste_pct) + COALESCE(w.s, 0) +
-             (u.admin_hours + u.cnc_hours + u.edgebander_hours + u.assembly_hours) * 100
+             (u.admin_hours * u.admin_rate + u.cnc_hours * u.cnc_rate +
+              u.edgebander_hours * u.edgebander_rate + u.assembly_hours * u.assembly_rate +
+              u.delivery_hours * u.delivery_rate + u.installation_hours * u.installation_rate)
             ) * (1 + h.margin) * u.quantity
           ), 0)
           FROM qb_quote_units u
@@ -162,36 +164,48 @@ async function _upsertFull(quoteId, body, client) {
     );
   }
 
+  // Fetch current labour rates once — snapshotted onto newly inserted units only
+  const { rows: rateRows } = await client.query('SELECT type, hourly_rate FROM labour_rates');
+  const rates = Object.fromEntries(rateRows.map(r => [r.type, Number(r.hourly_rate)]));
+  const R = (t) => rates[t] ?? 100;
+
   // Upsert units and their lines
   for (let i = 0; i < units.length; i++) {
     const u = units[i];
     let unitId = u.id || null;
 
-    const adminH    = u.admin_hours      ?? 0;
-    const cncH      = u.cnc_hours        ?? 0;
-    const edgeH     = u.edgebander_hours ?? 0;
-    const assemblyH = u.assembly_hours   ?? 0;
+    const adminH    = u.admin_hours        ?? 0;
+    const cncH      = u.cnc_hours          ?? 0;
+    const edgeH     = u.edgebander_hours   ?? 0;
+    const assemblyH = u.assembly_hours     ?? 0;
+    const deliveryH = u.delivery_hours     ?? 0;
+    const installH  = u.installation_hours ?? 0;
 
     if (unitId) {
+      // UPDATE — only update hours, never touch rate snapshots
       await client.query(
         `UPDATE qb_quote_units
          SET unit_number=$1, drawing_number=$2, room_number=$3, level=$4,
              description=$5, quantity=$6, sort_order=$7,
-             admin_hours=$8, cnc_hours=$9, edgebander_hours=$10, assembly_hours=$11
-         WHERE id=$12 AND quote_id=$13`,
+             admin_hours=$8, cnc_hours=$9, edgebander_hours=$10, assembly_hours=$11,
+             delivery_hours=$12, installation_hours=$13
+         WHERE id=$14 AND quote_id=$15`,
         [u.unit_number ?? i + 1, u.drawing_number || null, u.room_number || null,
          u.level || null, u.description || null, u.quantity ?? 1, u.sort_order ?? i,
-         adminH, cncH, edgeH, assemblyH, unitId, quoteId]
+         adminH, cncH, edgeH, assemblyH, deliveryH, installH, unitId, quoteId]
       );
     } else {
+      // INSERT — snapshot current rates so this unit's labour cost is frozen at today's rates
       const { rows: [row] } = await client.query(
         `INSERT INTO qb_quote_units
            (quote_id, unit_number, drawing_number, room_number, level, description, quantity, sort_order,
-            admin_hours, cnc_hours, edgebander_hours, assembly_hours)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`,
+            admin_hours, cnc_hours, edgebander_hours, assembly_hours, delivery_hours, installation_hours,
+            admin_rate, cnc_rate, edgebander_rate, assembly_rate, delivery_rate, installation_rate)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20) RETURNING id`,
         [quoteId, u.unit_number ?? i + 1, u.drawing_number || null, u.room_number || null,
          u.level || null, u.description || null, u.quantity ?? 1, u.sort_order ?? i,
-         adminH, cncH, edgeH, assemblyH]
+         adminH, cncH, edgeH, assemblyH, deliveryH, installH,
+         R('admin'), R('cnc'), R('edgebander'), R('assembly'), R('delivery'), R('installation')]
       );
       unitId = row.id;
     }
@@ -227,7 +241,9 @@ async function _upsertFull(quoteId, body, client) {
     const { rows: [tot] } = await client.query(`
       SELECT COALESCE(SUM(
         (COALESCE(m.s, 0) * (1 + $2::numeric) + COALESCE(w.s, 0) +
-         (u.admin_hours + u.cnc_hours + u.edgebander_hours + u.assembly_hours) * 100
+         (u.admin_hours * u.admin_rate + u.cnc_hours * u.cnc_rate +
+          u.edgebander_hours * u.edgebander_rate + u.assembly_hours * u.assembly_rate +
+          u.delivery_hours * u.delivery_rate + u.installation_hours * u.installation_rate)
         ) * (1 + $3::numeric) * u.quantity
       ), 0) AS subtotal
       FROM qb_quote_units u
@@ -326,6 +342,9 @@ async function getSummary(req, res) {
     const { rows: units } = await pool.query(
       `SELECT u.id, u.unit_number, u.drawing_number, u.room_number, u.level, u.description, u.quantity,
               u.admin_hours, u.cnc_hours, u.edgebander_hours, u.assembly_hours,
+              u.delivery_hours, u.installation_hours,
+              u.admin_rate, u.cnc_rate, u.edgebander_rate, u.assembly_rate,
+              u.delivery_rate, u.installation_rate,
               COALESCE(m.s, 0) AS mat_sub,
               COALESCE(w.s, 0) AS hw_sub
        FROM qb_quote_units u
@@ -348,8 +367,12 @@ async function getSummary(req, res) {
     const rows = units.map(u => {
       const matSub    = Number(u.mat_sub);
       const hwSub     = Number(u.hw_sub);
-      const labourSub = (Number(u.admin_hours) + Number(u.cnc_hours) +
-                         Number(u.edgebander_hours) + Number(u.assembly_hours)) * 100;
+      const labourSub = Number(u.admin_hours)        * Number(u.admin_rate) +
+                        Number(u.cnc_hours)           * Number(u.cnc_rate) +
+                        Number(u.edgebander_hours)    * Number(u.edgebander_rate) +
+                        Number(u.assembly_hours)      * Number(u.assembly_rate) +
+                        Number(u.delivery_hours)      * Number(u.delivery_rate) +
+                        Number(u.installation_hours)  * Number(u.installation_rate);
       const unitCost  = (matSub * (1 + wastePct) + hwSub + labourSub) * (1 + margin);
       const total     = unitCost * Number(u.quantity);
       subtotal += total;
@@ -390,13 +413,21 @@ async function getBudgetQty(req, res) {
       ORDER BY l.category, l.product
     `, [req.params.id]);
 
-    // Labour hours totalled across all units (× unit quantity)
+    // Labour hours and costs totalled across all units (hours × rate × unit qty)
     const { rows: [labour] } = await pool.query(`
       SELECT
-        COALESCE(SUM(admin_hours      * quantity), 0) AS admin_hours,
-        COALESCE(SUM(cnc_hours        * quantity), 0) AS cnc_hours,
-        COALESCE(SUM(edgebander_hours * quantity), 0) AS edgebander_hours,
-        COALESCE(SUM(assembly_hours   * quantity), 0) AS assembly_hours
+        COALESCE(SUM(admin_hours        * quantity), 0) AS admin_hours,
+        COALESCE(SUM(cnc_hours          * quantity), 0) AS cnc_hours,
+        COALESCE(SUM(edgebander_hours   * quantity), 0) AS edgebander_hours,
+        COALESCE(SUM(assembly_hours     * quantity), 0) AS assembly_hours,
+        COALESCE(SUM(delivery_hours     * quantity), 0) AS delivery_hours,
+        COALESCE(SUM(installation_hours * quantity), 0) AS installation_hours,
+        COALESCE(SUM(admin_hours        * quantity * admin_rate),        0) AS admin_cost,
+        COALESCE(SUM(cnc_hours          * quantity * cnc_rate),          0) AS cnc_cost,
+        COALESCE(SUM(edgebander_hours   * quantity * edgebander_rate),   0) AS edgebander_cost,
+        COALESCE(SUM(assembly_hours     * quantity * assembly_rate),     0) AS assembly_cost,
+        COALESCE(SUM(delivery_hours     * quantity * delivery_rate),     0) AS delivery_cost,
+        COALESCE(SUM(installation_hours * quantity * installation_rate), 0) AS installation_cost
       FROM qb_quote_units
       WHERE quote_id = $1
     `, [req.params.id]);
@@ -408,13 +439,21 @@ async function getBudgetQty(req, res) {
     const hwTotal     = lines.filter(l => l.category === 'Hardware')
                              .reduce((s, l) => s + Number(l.total_cost_allowed), 0);
     const labourHrs   = {
-      admin_hours:      Number(labour.admin_hours),
-      cnc_hours:        Number(labour.cnc_hours),
-      edgebander_hours: Number(labour.edgebander_hours),
-      assembly_hours:   Number(labour.assembly_hours),
+      admin_hours:        Number(labour.admin_hours),
+      cnc_hours:          Number(labour.cnc_hours),
+      edgebander_hours:   Number(labour.edgebander_hours),
+      assembly_hours:     Number(labour.assembly_hours),
+      delivery_hours:     Number(labour.delivery_hours),
+      installation_hours: Number(labour.installation_hours),
+      admin_cost:         Number(labour.admin_cost),
+      cnc_cost:           Number(labour.cnc_cost),
+      edgebander_cost:    Number(labour.edgebander_cost),
+      assembly_cost:      Number(labour.assembly_cost),
+      delivery_cost:      Number(labour.delivery_cost),
+      installation_cost:  Number(labour.installation_cost),
     };
-    const labourTotal    = (labourHrs.admin_hours + labourHrs.cnc_hours +
-                            labourHrs.edgebander_hours + labourHrs.assembly_hours) * 100;
+    const labourTotal = labourHrs.admin_cost + labourHrs.cnc_cost + labourHrs.edgebander_cost +
+                        labourHrs.assembly_cost + labourHrs.delivery_cost + labourHrs.installation_cost;
     const wasteAmount    = matRaw * wastePct;
     const matWithWaste   = matRaw + wasteAmount;
     const costsTotal     = matWithWaste + hwTotal + labourTotal;
@@ -465,8 +504,12 @@ async function getPdf(req, res) {
     const unitRows  = quote.units.map(u => {
       const matSub    = u.lines.filter(l => l.category === 'Materials').reduce((s, l) => s + Number(l.total), 0);
       const hwSub     = u.lines.filter(l => l.category === 'Hardware').reduce((s, l) => s + Number(l.total), 0);
-      const labourSub = (Number(u.admin_hours) + Number(u.cnc_hours) +
-                         Number(u.edgebander_hours) + Number(u.assembly_hours)) * 100;
+      const labourSub = Number(u.admin_hours)       * Number(u.admin_rate) +
+                        Number(u.cnc_hours)          * Number(u.cnc_rate) +
+                        Number(u.edgebander_hours)   * Number(u.edgebander_rate) +
+                        Number(u.assembly_hours)     * Number(u.assembly_rate) +
+                        Number(u.delivery_hours)     * Number(u.delivery_rate) +
+                        Number(u.installation_hours) * Number(u.installation_rate);
       const unitCost  = (matSub * (1 + wastePct) + hwSub + labourSub) * (1 + margin);
       const total     = unitCost * Number(u.quantity);
       subtotal += total;

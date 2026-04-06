@@ -5,19 +5,29 @@ import styles from '../Page.module.css';
 
 const CATEGORIES = ['Materials', 'Hardware'];
 const EMPTY = { category: 'Materials', product: '', price: '', unit: '', active: true };
+const LABOUR_TYPES = [
+  { type: 'admin',        label: 'Admin' },
+  { type: 'cnc',          label: 'CNC' },
+  { type: 'edgebander',   label: 'Edgebander' },
+  { type: 'assembly',     label: 'Assembly' },
+  { type: 'delivery',     label: 'Delivery' },
+  { type: 'installation', label: 'Installation' },
+];
 
 function fmtMoney(v) {
   return v != null ? new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(v) : '—';
 }
 
 export default function QBPriceListPage() {
-  const [items,    setItems]    = useState([]);
-  const [filter,   setFilter]   = useState('');
-  const [catFilter,setCatFilter]= useState('');
-  const [editId,   setEditId]   = useState(null);
-  const [editData, setEditData] = useState({});
-  const [showForm, setShowForm] = useState(false);
-  const [form,     setForm]     = useState(EMPTY);
+  const [items,       setItems]       = useState([]);
+  const [filter,      setFilter]      = useState('');
+  const [catFilter,   setCatFilter]   = useState('');
+  const [editId,      setEditId]      = useState(null);
+  const [editData,    setEditData]    = useState({});
+  const [showForm,    setShowForm]    = useState(false);
+  const [form,        setForm]        = useState(EMPTY);
+  const [labourRates, setLabourRates] = useState({});
+  const [labourEdit,  setLabourEdit]  = useState({});
 
   async function load() {
     try {
@@ -26,7 +36,15 @@ export default function QBPriceListPage() {
     } catch { toast.error('Failed to load price list'); }
   }
 
-  useEffect(() => { load(); }, []);
+  async function loadLabourRates() {
+    try {
+      const res = await api.get('/qb/labour-rates');
+      setLabourRates(res.data);
+      setLabourEdit(Object.fromEntries(Object.entries(res.data).map(([k, v]) => [k, String(v)])));
+    } catch { toast.error('Failed to load labour rates'); }
+  }
+
+  useEffect(() => { load(); loadLabourRates(); }, []);
 
   async function handleCreate(e) {
     e.preventDefault();
@@ -53,6 +71,16 @@ export default function QBPriceListPage() {
       await api.patch(`/qb/price-list/${id}/toggle-active`);
       load();
     } catch { toast.error('Toggle failed'); }
+  }
+
+  async function saveLabourRate(type) {
+    const rate = parseFloat(labourEdit[type]);
+    if (isNaN(rate) || rate < 0) { toast.error('Invalid rate'); return; }
+    try {
+      await api.patch(`/qb/labour-rates/${type}`, { hourly_rate: rate });
+      toast.success('Rate updated');
+      setLabourRates(r => ({ ...r, [type]: rate }));
+    } catch (err) { toast.error(err.response?.data?.error || 'Save failed'); }
   }
 
   async function handleDelete(id) {
@@ -194,6 +222,51 @@ export default function QBPriceListPage() {
             {!filtered.length && (
               <tr><td colSpan={6}><div className="empty-state"><div className="empty-icon">💰</div><div className="empty-text">No items found</div></div></td></tr>
             )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Labour Rates */}
+      <div className="table-wrap" style={{ marginTop: 32 }}>
+        <div className="table-toolbar">
+          <span className="ttitle">Labour Rates</span>
+          <span style={{ marginLeft: 'auto', fontSize: '.68rem', color: 'var(--muted)' }}>
+            Changes apply to all future quotes — existing quotes retain their snapshotted rates
+          </span>
+        </div>
+        <table className="std-table">
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th style={{ textAlign: 'right' }}>Hourly Rate ($/hr)</th>
+              <th style={{ width: 80 }}></th>
+            </tr>
+          </thead>
+          <tbody>
+            {LABOUR_TYPES.map(({ type, label }) => (
+              <tr key={type}>
+                <td>{label}</td>
+                <td style={{ textAlign: 'right' }}>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={labourEdit[type] ?? ''}
+                    onChange={e => setLabourEdit(r => ({ ...r, [type]: e.target.value }))}
+                    style={{ width: 120, textAlign: 'right' }}
+                  />
+                </td>
+                <td>
+                  <button
+                    className="smbtn smbtn-save"
+                    onClick={() => saveLabourRate(type)}
+                    disabled={parseFloat(labourEdit[type]) === labourRates[type]}
+                  >
+                    Save
+                  </button>
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
