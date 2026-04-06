@@ -12,7 +12,9 @@
       "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_BSx2qEg7frXi@ep-jolly-glade-anusmg02-pooler.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require\" node server/db/qb_migrate_labour.js)",
       "Bash(node db/qb_migrate_labour.js)",
       "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_BSx2qEg7frXi@ep-jolly-glade-anusmg02-pooler.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require\" node server/db/qb_migrate_waste.js)",
-      "Bash(npm test:*)"
+      "Bash(npm test:*)",
+      "Bash(curl -s http://localhost:5000/api/health)",
+      "Bash(curl -s -X POST \"http://localhost:5000/api/qb/quotes/from-quote/test\" -H \"Content-Type: application/json\")"
     ]
   }
 }

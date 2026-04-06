@@ -162,6 +162,35 @@
 }
 .removeLine:hover { color: #A33B2A; background: rgba(163,59,42,.07); }
 
+/* Linked-to-job-tracker read-only header */
+.linkedInfo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 32px;
+  padding: 10px 16px;
+  background: var(--sawdust);
+  border: 1px solid var(--oak-light);
+  border-radius: 6px;
+  margin-bottom: 4px;
+}
+.linkedField {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 0;
+  min-width: 140px;
+}
+.linkedField span {
+  font-size: .65rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--oak-dark);
+  margin-bottom: 2px;
+}
+.linkedField strong {
+  font-size: .88rem;
+  color: var(--charcoal);
+}
+
 /* Labour hours section */
 .labourSection {
   padding: 14px 20px;

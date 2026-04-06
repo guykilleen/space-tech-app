@@ -30,8 +30,9 @@ export default function QuotesPage() {
   const [search, setSearch]     = useState('');
   const [editId, setEditId]     = useState(null);
   const [editData, setEditData] = useState({});
-  const [jobModal, setJobModal] = useState(null); // quote to convert
-  const [qCount, setQCount]     = useState(0);
+  const [jobModal,    setJobModal]    = useState(null); // quote to convert
+  const [buildingId,  setBuildingId]  = useState(null); // QB open in progress
+  const [qCount, setQCount]           = useState(0);
 
   // New quote form state
   const [form, setForm] = useState({
@@ -94,6 +95,18 @@ export default function QuotesPage() {
   }
 
   function closeEdit() { setEditId(null); }
+
+  async function openInBuilder(quoteId) {
+    setBuildingId(quoteId);
+    try {
+      const res = await api.post(`/qb/quotes/from-quote/${quoteId}`);
+      navigate(`/qb/quotes/${res.data.id}`);
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to open Quote Builder');
+    } finally {
+      setBuildingId(null);
+    }
+  }
 
   async function handleSaveEdit(id) {
     const prevStatus = quotes.find(q => q.id === id)?.status;
@@ -209,10 +222,11 @@ export default function QuotesPage() {
                           </button>
                           <button
                             className="act-btn"
-                            title="Open in Quote Builder"
-                            onClick={() => navigate(`/qb/quotes/new?quote_number=${encodeURIComponent(q.quote_number)}&project=${encodeURIComponent(q.project || '')}`)}
+                            title="Open Quote Builder"
+                            disabled={buildingId === q.id}
+                            onClick={() => openInBuilder(q.id)}
                           >
-                            QB →
+                            {buildingId === q.id ? '…' : 'Build Quote'}
                           </button>
                         </div>
                       )}

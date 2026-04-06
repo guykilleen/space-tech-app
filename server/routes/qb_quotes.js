@@ -5,9 +5,12 @@ const ctrl = require('../controllers/qb_quotes_controller');
 router.use(authenticate, isAdminOrMgr);
 
 // Quote headers — full nested save (header + all units + lines in one call)
-router.get('/next-number',   ctrl.getNextNumber);
-router.get('/',              ctrl.getAll);
-router.get('/:id',           ctrl.getOne);
+router.get('/next-number',              ctrl.getNextNumber);
+// Job Tracker integration — must be before /:id
+router.get('/by-quote/:quoteId',        ctrl.getByQuoteId);
+router.post('/from-quote/:quoteId',     ctrl.createFromQuote);
+router.get('/',                         ctrl.getAll);
+router.get('/:id',                      ctrl.getOne);
 router.post('/',             ctrl.create);
 router.put('/:id',           ctrl.update);
 router.patch('/:id/status',  ctrl.updateStatus);

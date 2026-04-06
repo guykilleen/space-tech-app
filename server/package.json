@@ -13,6 +13,7 @@
     "db:qb-seed-prices": "node db/qb_seed_prices.js",
     "db:qb-migrate-labour": "node db/qb_migrate_labour.js",
     "db:qb-migrate-waste": "node db/qb_migrate_waste.js",
+    "db:qb-migrate-link": "node db/qb_migrate_link.js",
     "test": "jest --runInBand"
   },
   "dependencies": {

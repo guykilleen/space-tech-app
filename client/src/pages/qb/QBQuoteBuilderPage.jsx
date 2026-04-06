@@ -46,10 +46,12 @@ export default function QBQuoteBuilderPage() {
   const navigate       = useNavigate();
   const isNew          = !id;
 
-  const [priceList,  setPriceList]  = useState([]);
-  const [contacts,   setContacts]   = useState([]);
-  const [saving,     setSaving]     = useState(false);
-  const [loading,    setLoading]    = useState(!isNew);
+  const [priceList,    setPriceList]    = useState([]);
+  const [contacts,     setContacts]     = useState([]);
+  const [saving,       setSaving]       = useState(false);
+  const [loading,      setLoading]      = useState(!isNew);
+  const [linkedQuoteId,   setLinkedQuoteId]   = useState(null);  // FK → quotes.id
+  const [jtClientName,    setJtClientName]    = useState('');
 
   const [header, setHeader] = useState({
     quote_number: searchParams.get('quote_number') || '',
@@ -96,6 +98,8 @@ export default function QBQuoteBuilderPage() {
     api.get(`/qb/quotes/${id}`)
       .then(res => {
         const q = res.data;
+        setLinkedQuoteId(q.quote_id || null);
+        setJtClientName(q.jt_client_name || '');
         setHeader({
           quote_number: q.quote_number,
           date:         q.date?.split('T')[0] || today,
@@ -269,6 +273,9 @@ export default function QBQuoteBuilderPage() {
           {isNew ? 'New Quote' : `Editing ${header.quote_number}`}
         </div>
         <div className={styles.builderActions}>
+          {linkedQuoteId && (
+            <button className="btn btn-outline" onClick={() => navigate('/quotes')}>← Back to Quotes</button>
+          )}
           {!isNew && (
             <>
               <button className="btn btn-outline" onClick={() => navigate(`/qb/quotes/${id}/summary`)}>Summary →</button>
@@ -285,66 +292,96 @@ export default function QBQuoteBuilderPage() {
       {/* ── Quote details ── */}
       <div className="form-panel">
         <div className="form-panel-title">Quote Details</div>
-        <div className="form-grid cols-4">
-          <div className="field">
-            <label>Quote Number</label>
-            <input value={header.quote_number} onChange={e => setH('quote_number', e.target.value)} placeholder="V-0001" />
-          </div>
-          <div className="field">
-            <label>Date</label>
-            <input type="date" value={header.date} onChange={e => setH('date', e.target.value)} />
-          </div>
-          <div className="field">
-            <label>Status</label>
-            <select value={header.status} onChange={e => setH('status', e.target.value)}>
-              <option value="draft">Draft</option>
-              <option value="sent">Sent</option>
-              <option value="accepted">Accepted</option>
-              <option value="declined">Declined</option>
-            </select>
-          </div>
-          <div className="field">
-            <label>Margin (%)</label>
-            <input
-              type="number" step="1" min="0" max="100"
-              value={header.margin}
-              onChange={e => setH('margin', e.target.value)}
-            />
-          </div>
-          <div className="field">
-            <label>Material Waste (%)</label>
-            <input
-              type="number" step="1" min="0" max="100"
-              value={header.waste_pct}
-              onChange={e => setH('waste_pct', e.target.value)}
-            />
-          </div>
 
-          <div className="field span-2">
-            <label>Client</label>
-            <select value={header.client_id} onChange={e => setH('client_id', e.target.value)}>
-              <option value="">— Select contact —</option>
-              {contacts.map(c => (
-                <option key={c.id} value={c.id}>
-                  {c.name}{c.company ? ` — ${c.company}` : ''}
-                </option>
-              ))}
-            </select>
+        {/* When linked to the Job Tracker, identity fields are read-only */}
+        {linkedQuoteId ? (
+          <>
+            <div className={styles.linkedInfo}>
+              <div className={styles.linkedField}><span>Quote #</span><strong>{header.quote_number}</strong></div>
+              <div className={styles.linkedField}><span>Client</span><strong>{jtClientName || '—'}</strong></div>
+              <div className={styles.linkedField}><span>Project</span><strong>{header.project || '—'}</strong></div>
+              <div className={styles.linkedField}><span>Date</span><strong>{header.date ? new Date(header.date + 'T00:00:00').toLocaleDateString('en-AU') : '—'}</strong></div>
+            </div>
+            <div className="form-grid cols-4" style={{ marginTop: 12 }}>
+              <div className="field">
+                <label>Status</label>
+                <select value={header.status} onChange={e => setH('status', e.target.value)}>
+                  <option value="draft">Draft</option>
+                  <option value="sent">Sent</option>
+                  <option value="accepted">Accepted</option>
+                  <option value="declined">Declined</option>
+                </select>
+              </div>
+              <div className="field">
+                <label>Margin (%)</label>
+                <input type="number" step="1" min="0" max="100" value={header.margin} onChange={e => setH('margin', e.target.value)} />
+              </div>
+              <div className="field">
+                <label>Material Waste (%)</label>
+                <input type="number" step="1" min="0" max="100" value={header.waste_pct} onChange={e => setH('waste_pct', e.target.value)} />
+              </div>
+              <div className="field">
+                <label>Prepared By</label>
+                <input value={header.prepared_by} onChange={e => setH('prepared_by', e.target.value)} placeholder="e.g. Guy Killeen" />
+              </div>
+              <div className="field span-4">
+                <label>Notes</label>
+                <input value={header.notes} onChange={e => setH('notes', e.target.value)} placeholder="Internal notes or client-facing exclusions" />
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="form-grid cols-4">
+            <div className="field">
+              <label>Quote Number</label>
+              <input value={header.quote_number} onChange={e => setH('quote_number', e.target.value)} placeholder="V-0001" />
+            </div>
+            <div className="field">
+              <label>Date</label>
+              <input type="date" value={header.date} onChange={e => setH('date', e.target.value)} />
+            </div>
+            <div className="field">
+              <label>Status</label>
+              <select value={header.status} onChange={e => setH('status', e.target.value)}>
+                <option value="draft">Draft</option>
+                <option value="sent">Sent</option>
+                <option value="accepted">Accepted</option>
+                <option value="declined">Declined</option>
+              </select>
+            </div>
+            <div className="field">
+              <label>Margin (%)</label>
+              <input type="number" step="1" min="0" max="100" value={header.margin} onChange={e => setH('margin', e.target.value)} />
+            </div>
+            <div className="field">
+              <label>Material Waste (%)</label>
+              <input type="number" step="1" min="0" max="100" value={header.waste_pct} onChange={e => setH('waste_pct', e.target.value)} />
+            </div>
+            <div className="field span-2">
+              <label>Client</label>
+              <select value={header.client_id} onChange={e => setH('client_id', e.target.value)}>
+                <option value="">— Select contact —</option>
+                {contacts.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}{c.company ? ` — ${c.company}` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field span-2">
+              <label>Project</label>
+              <input value={header.project} onChange={e => setH('project', e.target.value)} placeholder="Project name or address" />
+            </div>
+            <div className="field span-2">
+              <label>Prepared By</label>
+              <input value={header.prepared_by} onChange={e => setH('prepared_by', e.target.value)} placeholder="e.g. Guy Killeen" />
+            </div>
+            <div className="field span-2">
+              <label>Notes</label>
+              <input value={header.notes} onChange={e => setH('notes', e.target.value)} placeholder="Internal notes or client-facing exclusions" />
+            </div>
           </div>
-          <div className="field span-2">
-            <label>Project</label>
-            <input value={header.project} onChange={e => setH('project', e.target.value)} placeholder="Project name or address" />
-          </div>
-
-          <div className="field span-2">
-            <label>Prepared By</label>
-            <input value={header.prepared_by} onChange={e => setH('prepared_by', e.target.value)} placeholder="e.g. Guy Killeen" />
-          </div>
-          <div className="field span-2">
-            <label>Notes</label>
-            <input value={header.notes} onChange={e => setH('notes', e.target.value)} placeholder="Internal notes or client-facing exclusions" />
-          </div>
-        </div>
+        )}
       </div>
 
       {/* ── Units ── */}

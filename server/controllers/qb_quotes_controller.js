@@ -7,9 +7,11 @@ async function fetchFull(id) {
     `SELECT h.*,
             c.name    AS contact_name,
             c.email   AS contact_email,
-            c.company AS contact_company
+            c.company AS contact_company,
+            q.client_name AS jt_client_name
      FROM qb_quote_headers h
      LEFT JOIN qb_contacts c ON h.client_id = c.id
+     LEFT JOIN quotes q ON h.quote_id = q.id
      WHERE h.id = $1`,
     [id]
   );
@@ -112,13 +114,14 @@ async function _upsertFull(quoteId, body, client) {
   const {
     quote_number, date, project, prepared_by, margin, waste_pct, status, notes,
     client_id,
+    quote_id = null,        // FK → quotes.id (Job Tracker)
     units = [],
     deleted_unit_ids = [],
     deleted_line_ids = [],
   } = body;
 
   if (quoteId) {
-    // UPDATE header
+    // UPDATE header (never overwrite quote_id once set)
     await client.query(
       `UPDATE qb_quote_headers
        SET quote_number=$1, date=$2, client_id=$3, project=$4, prepared_by=$5,
@@ -131,10 +134,12 @@ async function _upsertFull(quoteId, body, client) {
   } else {
     // INSERT header
     const { rows: [h] } = await client.query(
-      `INSERT INTO qb_quote_headers (quote_number, date, client_id, project, prepared_by, margin, waste_pct, status, notes)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
+      `INSERT INTO qb_quote_headers
+         (quote_number, date, client_id, project, prepared_by, margin, waste_pct, status, notes, quote_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`,
       [quote_number, date || new Date(), client_id || null, project || null,
-       prepared_by || null, margin ?? 0.10, waste_pct ?? 0.05, status || 'draft', notes || null]
+       prepared_by || null, margin ?? 0.10, waste_pct ?? 0.05, status || 'draft', notes || null,
+       quote_id || null]
     );
     quoteId = h.id;
   }
@@ -212,6 +217,29 @@ async function _upsertFull(quoteId, body, client) {
         );
       }
     }
+  }
+
+  // Write calculated subtotal (ex-GST) back to quotes.value when linked
+  const { rows: [hdr] } = await client.query(
+    'SELECT quote_id, margin, waste_pct FROM qb_quote_headers WHERE id = $1', [quoteId]
+  );
+  if (hdr?.quote_id) {
+    const { rows: [tot] } = await client.query(`
+      SELECT COALESCE(SUM(
+        (COALESCE(m.s, 0) * (1 + $2::numeric) + COALESCE(w.s, 0) +
+         (u.admin_hours + u.cnc_hours + u.edgebander_hours + u.assembly_hours) * 100
+        ) * (1 + $3::numeric) * u.quantity
+      ), 0) AS subtotal
+      FROM qb_quote_units u
+      LEFT JOIN (
+        SELECT unit_id, SUM(total) AS s FROM qb_quote_unit_lines WHERE category = 'Materials' GROUP BY unit_id
+      ) m ON m.unit_id = u.id
+      LEFT JOIN (
+        SELECT unit_id, SUM(total) AS s FROM qb_quote_unit_lines WHERE category = 'Hardware' GROUP BY unit_id
+      ) w ON w.unit_id = u.id
+      WHERE u.quote_id = $1
+    `, [quoteId, hdr.waste_pct, hdr.margin]);
+    await client.query('UPDATE quotes SET value = $1 WHERE id = $2', [Number(tot.subtotal), hdr.quote_id]);
   }
 
   return quoteId;
@@ -543,7 +571,75 @@ ${quote.notes ? `<p style="margin-top:24px;font-size:10px;color:#555"><strong>No
   }
 }
 
+// ── Job Tracker integration ───────────────────────────────────────────────
+
+// Returns the QB header (full) linked to a job-tracker quote, or 404 if none yet.
+async function getByQuoteId(req, res) {
+  try {
+    const { rows: [row] } = await pool.query(
+      'SELECT id FROM qb_quote_headers WHERE quote_id = $1',
+      [req.params.quoteId]
+    );
+    if (!row) return res.status(404).json({ exists: false });
+    const quote = await fetchFull(row.id);
+    res.json(quote);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+// Idempotent: returns existing QB header if one is already linked, otherwise
+// creates a new one seeded from the job-tracker quote's details.
+async function createFromQuote(req, res) {
+  const { quoteId } = req.params;
+
+  // Return existing if already linked
+  const { rows: [existing] } = await pool.query(
+    'SELECT id FROM qb_quote_headers WHERE quote_id = $1', [quoteId]
+  );
+  if (existing) {
+    const quote = await fetchFull(existing.id);
+    return res.json(quote);
+  }
+
+  // Look up the job-tracker quote
+  const { rows: [jt] } = await pool.query(
+    'SELECT quote_number, client_name, project, date FROM quotes WHERE id = $1', [quoteId]
+  );
+  if (!jt) return res.status(404).json({ error: 'Quote not found' });
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const qbId = await _upsertFull(null, {
+      quote_number: jt.quote_number,
+      date:         jt.date,
+      project:      jt.project,
+      prepared_by:  null,
+      margin:       0.10,
+      waste_pct:    0.05,
+      status:       'draft',
+      notes:        null,
+      client_id:    null,
+      quote_id:     quoteId,
+      units:        [],
+    }, client);
+    await client.query('COMMIT');
+    const quote = await fetchFull(qbId);
+    res.status(201).json(quote);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    if (err.code === '23505') return res.status(409).json({ error: 'QB header already exists for this quote' });
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  } finally {
+    client.release();
+  }
+}
+
 module.exports = {
   getNextNumber, getAll, getOne, create, update, updateStatus, remove,
   getSummary, getBudgetQty, getPdf,
+  getByQuoteId, createFromQuote,
 };
