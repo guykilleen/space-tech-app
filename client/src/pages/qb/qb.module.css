@@ -405,6 +405,180 @@
   color: var(--oak);
 }
 
+/* ── Rate override / locked indicators ──────────────────────── */
+
+/* Locked badge in the builder title */
+.lockedBadge {
+  display: inline-flex;
+  align-items: center;
+  font-size: .58rem;
+  font-family: 'DM Mono', monospace;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: var(--sawdust);
+  border: 1px solid var(--oak-light);
+  border-radius: 3px;
+  padding: 3px 10px;
+  margin-left: 14px;
+  vertical-align: middle;
+}
+
+/* Inline rate edit inside labour label */
+.rateEditWrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: .65rem;
+  color: var(--muted);
+  font-weight: 400;
+  margin-left: 5px;
+}
+
+.rateInput {
+  width: 48px;
+  padding: 1px 4px;
+  font-size: .72rem;
+  text-align: right;
+  border: 1px solid var(--oak-light);
+  border-radius: 2px;
+  background: var(--white);
+  color: var(--ink);
+  display: inline;
+  -moz-appearance: textfield;
+}
+.rateInput::-webkit-outer-spin-button,
+.rateInput::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.rateInput:focus {
+  outline: none;
+  border-color: var(--oak);
+  background: #fffdf8;
+}
+
+/* Pencil indicator for manually overridden values */
+.overrideDot {
+  color: var(--oak-dark);
+  font-size: .7rem;
+  margin-left: 3px;
+  cursor: default;
+  opacity: 0.75;
+}
+
+/* Lock icon for locked rate values in cells */
+.lockedDot {
+  font-size: .62rem;
+  margin-left: 4px;
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Price cell wrapper (flex for input + indicator) */
+.priceCell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.priceCell input { flex: 1; }
+
+/* Refresh Rates button */
+.refreshRatesBtn {
+  background: none;
+  border: 1px solid var(--oak-light);
+  border-radius: 2px;
+  color: var(--oak-dark);
+  font-family: 'DM Mono', monospace;
+  font-size: .6rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  padding: 6px 12px;
+  cursor: pointer;
+  margin-left: auto;
+  transition: all .15s;
+  white-space: nowrap;
+}
+.refreshRatesBtn:hover {
+  border-color: var(--oak);
+  background: rgba(204,160,20,.06);
+}
+
+/* ── Rate diff dialog ─────────────────────────────────────────── */
+.rateDiffOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(26,26,26,.45);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.rateDiffDialog {
+  background: var(--white);
+  border: 1px solid var(--oak-light);
+  border-radius: 6px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.18);
+  padding: 32px 36px;
+  min-width: 380px;
+  max-width: 560px;
+  width: 100%;
+}
+
+.rateDiffTitle {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1.2rem;
+  color: var(--mid);
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--oak-light);
+}
+
+.rateDiffSection { margin-bottom: 18px; }
+
+.rateDiffSectionTitle {
+  font-size: .58rem;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.rateDiffTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .8rem;
+}
+.rateDiffTable tr + tr td { border-top: 1px solid var(--sawdust); }
+.rateDiffTable td { padding: 6px 4px; }
+
+.rateDiffProduct { color: var(--ink); }
+.rateDiffOld { color: var(--muted); text-decoration: line-through; text-align: right; width: 100px; }
+.rateDiffArrow { color: var(--muted); padding: 0 8px; text-align: center; width: 24px; }
+.rateDiffNew { color: var(--oak-dark); font-weight: 600; text-align: right; width: 100px; }
+
+.rateDiffEmpty {
+  font-size: .82rem;
+  color: var(--muted);
+  padding: 12px 0;
+  text-align: center;
+}
+
+.rateDiffNote {
+  font-size: .68rem;
+  color: var(--muted);
+  margin-top: 4px;
+  margin-bottom: 20px;
+  font-style: italic;
+}
+
+.rateDiffActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--oak-light);
+}
+
 /* ── Mobile ──────────────────────────────────────────────── */
 @media (max-width: 640px) {
 

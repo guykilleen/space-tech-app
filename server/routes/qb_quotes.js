@@ -21,4 +21,8 @@ router.get('/:id/summary',   ctrl.getSummary);
 router.get('/:id/budget',    ctrl.getBudgetQty);
 router.get('/:id/pdf',       ctrl.getPdf);
 
+// Rate override / sync (per unit)
+router.get( '/:id/units/:unitId/rate-diff',   ctrl.getRateDiff);
+router.post('/:id/units/:unitId/sync-rates',  ctrl.syncRates);
+
 module.exports = router;

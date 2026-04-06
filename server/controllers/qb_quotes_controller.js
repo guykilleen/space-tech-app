@@ -182,17 +182,37 @@ async function _upsertFull(quoteId, body, client) {
     const installH  = u.installation_hours ?? 0;
 
     if (unitId) {
-      // UPDATE — only update hours, never touch rate snapshots
+      // UPDATE — update hours; also accept manually overridden rates and override flags.
+      // COALESCE preserves existing DB value when the field is omitted (null) from body.
       await client.query(
         `UPDATE qb_quote_units
          SET unit_number=$1, drawing_number=$2, room_number=$3, level=$4,
              description=$5, quantity=$6, sort_order=$7,
              admin_hours=$8, cnc_hours=$9, edgebander_hours=$10, assembly_hours=$11,
-             delivery_hours=$12, installation_hours=$13
-         WHERE id=$14 AND quote_id=$15`,
+             delivery_hours=$12, installation_hours=$13,
+             admin_rate        = COALESCE($14, admin_rate),
+             cnc_rate          = COALESCE($15, cnc_rate),
+             edgebander_rate   = COALESCE($16, edgebander_rate),
+             assembly_rate     = COALESCE($17, assembly_rate),
+             delivery_rate     = COALESCE($18, delivery_rate),
+             installation_rate = COALESCE($19, installation_rate),
+             admin_rate_overridden        = COALESCE($20, admin_rate_overridden),
+             cnc_rate_overridden          = COALESCE($21, cnc_rate_overridden),
+             edgebander_rate_overridden   = COALESCE($22, edgebander_rate_overridden),
+             assembly_rate_overridden     = COALESCE($23, assembly_rate_overridden),
+             delivery_rate_overridden     = COALESCE($24, delivery_rate_overridden),
+             installation_rate_overridden = COALESCE($25, installation_rate_overridden)
+         WHERE id=$26 AND quote_id=$27`,
         [u.unit_number ?? i + 1, u.drawing_number || null, u.room_number || null,
          u.level || null, u.description || null, u.quantity ?? 1, u.sort_order ?? i,
-         adminH, cncH, edgeH, assemblyH, deliveryH, installH, unitId, quoteId]
+         adminH, cncH, edgeH, assemblyH, deliveryH, installH,
+         u.admin_rate        ?? null, u.cnc_rate          ?? null,
+         u.edgebander_rate   ?? null, u.assembly_rate     ?? null,
+         u.delivery_rate     ?? null, u.installation_rate ?? null,
+         u.admin_rate_overridden        ?? null, u.cnc_rate_overridden          ?? null,
+         u.edgebander_rate_overridden   ?? null, u.assembly_rate_overridden     ?? null,
+         u.delivery_rate_overridden     ?? null, u.installation_rate_overridden ?? null,
+         unitId, quoteId]
       );
     } else {
       // INSERT — snapshot current rates so this unit's labour cost is frozen at today's rates
@@ -216,11 +236,12 @@ async function _upsertFull(quoteId, body, client) {
         await client.query(
           `UPDATE qb_quote_unit_lines
            SET price_list_id=$1, category=$2, product=$3, price=$4,
-               unit_of_measure=$5, quantity=$6, sort_order=$7
-           WHERE id=$8 AND unit_id=$9`,
+               unit_of_measure=$5, quantity=$6, sort_order=$7,
+               price_overridden = COALESCE($8, price_overridden)
+           WHERE id=$9 AND unit_id=$10`,
           [l.price_list_id || null, l.category || 'Materials', l.product,
            l.price ?? 0, l.unit_of_measure || null, l.quantity ?? 0, l.sort_order ?? j,
-           l.id, unitId]
+           l.price_overridden ?? null, l.id, unitId]
         );
       } else {
         await client.query(
@@ -614,6 +635,156 @@ ${quote.notes ? `<p style="margin-top:24px;font-size:10px;color:#555"><strong>No
   }
 }
 
+// ── Rate override helpers ─────────────────────────────────────────────────
+
+const EDITABLE_STATUSES = ['draft', 'pending'];
+
+// Returns a preview of what would change if rates were synced for a given unit.
+// No writes — purely informational.
+async function getRateDiff(req, res) {
+  const { id, unitId } = req.params;
+  try {
+    const { rows: [header] } = await pool.query(
+      'SELECT status FROM qb_quote_headers WHERE id = $1', [id]
+    );
+    if (!header) return res.status(404).json({ error: 'Quote not found' });
+    if (!EDITABLE_STATUSES.includes(header.status)) {
+      return res.status(403).json({ error: 'Quote is locked — rates cannot be changed on accepted quotes' });
+    }
+
+    const { rows: [unit] } = await pool.query(
+      'SELECT * FROM qb_quote_units WHERE id = $1 AND quote_id = $2', [unitId, id]
+    );
+    if (!unit) return res.status(404).json({ error: 'Unit not found' });
+
+    // Compare stored line prices against current price list (only linked lines)
+    const { rows: lines } = await pool.query(`
+      SELECT l.id, l.product, l.category,
+             l.price   AS stored_price,
+             p.price   AS current_price
+      FROM qb_quote_unit_lines l
+      JOIN qb_price_list p ON l.price_list_id = p.id
+      WHERE l.unit_id = $1
+    `, [unitId]);
+
+    const materialDiffs = lines
+      .filter(l => Number(l.stored_price) !== Number(l.current_price))
+      .map(l => ({
+        line_id:       l.id,
+        product:       l.product,
+        category:      l.category,
+        stored_price:  Number(l.stored_price),
+        current_price: Number(l.current_price),
+      }));
+
+    // Compare stored labour rates against current labour_rates table
+    const { rows: rateRows } = await pool.query('SELECT type, hourly_rate FROM labour_rates');
+    const currentRates = Object.fromEntries(rateRows.map(r => [r.type, Number(r.hourly_rate)]));
+
+    const LABOUR_TYPES = ['admin', 'cnc', 'edgebander', 'assembly', 'delivery', 'installation'];
+    const labourDiffs = LABOUR_TYPES
+      .filter(t => Number(unit[`${t}_rate`]) !== currentRates[t])
+      .map(t => ({
+        type:         t,
+        stored_rate:  Number(unit[`${t}_rate`]),
+        current_rate: currentRates[t],
+      }));
+
+    res.json({ materials: materialDiffs, labour: labourDiffs });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+// Applies a full rate sync to one unit: updates line prices from price list,
+// updates labour rates from labour_rates table, clears override flags,
+// stamps rates_last_synced_at, and triggers write-back to quotes.value.
+async function syncRates(req, res) {
+  const { id, unitId } = req.params;
+  const client = await pool.connect();
+  try {
+    const { rows: [header] } = await pool.query(
+      'SELECT status, quote_id, margin, waste_pct FROM qb_quote_headers WHERE id = $1', [id]
+    );
+    if (!header) return res.status(404).json({ error: 'Quote not found' });
+    if (!EDITABLE_STATUSES.includes(header.status)) {
+      return res.status(403).json({ error: 'Quote is locked — rates cannot be changed on accepted quotes' });
+    }
+
+    const { rows: [unit] } = await pool.query(
+      'SELECT id FROM qb_quote_units WHERE id = $1 AND quote_id = $2', [unitId, id]
+    );
+    if (!unit) return res.status(404).json({ error: 'Unit not found' });
+
+    await client.query('BEGIN');
+
+    // Update linked line prices to current price list; clear price_overridden
+    await client.query(`
+      UPDATE qb_quote_unit_lines l
+      SET price = p.price,
+          total = p.price * l.quantity,
+          price_overridden = FALSE
+      FROM qb_price_list p
+      WHERE l.price_list_id = p.id
+        AND l.unit_id = $1
+    `, [unitId]);
+
+    // Fetch current labour rates
+    const { rows: rateRows } = await client.query('SELECT type, hourly_rate FROM labour_rates');
+    const rates = Object.fromEntries(rateRows.map(r => [r.type, Number(r.hourly_rate)]));
+    const R = t => rates[t] ?? 100;
+
+    // Update all labour rates on the unit; clear override flags; stamp sync time
+    await client.query(`
+      UPDATE qb_quote_units
+      SET admin_rate = $1, cnc_rate = $2, edgebander_rate = $3,
+          assembly_rate = $4, delivery_rate = $5, installation_rate = $6,
+          admin_rate_overridden        = FALSE,
+          cnc_rate_overridden          = FALSE,
+          edgebander_rate_overridden   = FALSE,
+          assembly_rate_overridden     = FALSE,
+          delivery_rate_overridden     = FALSE,
+          installation_rate_overridden = FALSE,
+          rates_last_synced_at = NOW()
+      WHERE id = $7
+    `, [R('admin'), R('cnc'), R('edgebander'), R('assembly'), R('delivery'), R('installation'), unitId]);
+
+    // Recalculate write-back to quotes.value when linked to job tracker
+    if (header.quote_id) {
+      const { rows: [tot] } = await client.query(`
+        SELECT COALESCE(SUM(
+          (COALESCE(m.s, 0) * (1 + $2::numeric) + COALESCE(w.s, 0) +
+           (u.admin_hours * u.admin_rate + u.cnc_hours * u.cnc_rate +
+            u.edgebander_hours * u.edgebander_rate + u.assembly_hours * u.assembly_rate +
+            u.delivery_hours * u.delivery_rate + u.installation_hours * u.installation_rate)
+          ) * (1 + $3::numeric) * u.quantity
+        ), 0) AS subtotal
+        FROM qb_quote_units u
+        LEFT JOIN (
+          SELECT unit_id, SUM(total) AS s FROM qb_quote_unit_lines WHERE category = 'Materials' GROUP BY unit_id
+        ) m ON m.unit_id = u.id
+        LEFT JOIN (
+          SELECT unit_id, SUM(total) AS s FROM qb_quote_unit_lines WHERE category = 'Hardware' GROUP BY unit_id
+        ) w ON w.unit_id = u.id
+        WHERE u.quote_id = $1
+      `, [id, header.waste_pct, header.margin]);
+      await client.query('UPDATE quotes SET value = $1 WHERE id = $2', [Number(tot.subtotal), header.quote_id]);
+    }
+
+    await client.query('COMMIT');
+
+    const quote = await fetchFull(id);
+    res.json(quote);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  } finally {
+    client.release();
+  }
+}
+
 // ── Job Tracker integration ───────────────────────────────────────────────
 
 // Returns the QB header (full) linked to a job-tracker quote, or 404 if none yet.
@@ -685,4 +856,5 @@ module.exports = {
   getNextNumber, getAll, getOne, create, update, updateStatus, remove,
   getSummary, getBudgetQty, getPdf,
   getByQuoteId, createFromQuote,
+  getRateDiff, syncRates,
 };

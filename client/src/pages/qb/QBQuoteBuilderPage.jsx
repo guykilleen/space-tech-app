@@ -12,6 +12,7 @@ const EMPTY_LINE = () => ({
   _key: tempId(), id: null,
   price_list_id: null, category: 'Materials',
   product: '', price: 0, unit_of_measure: '', quantity: 0,
+  price_overridden: false,
 });
 
 const EMPTY_UNIT = (n) => ({
@@ -20,6 +21,9 @@ const EMPTY_UNIT = (n) => ({
   level: '', description: '', quantity: 1,
   admin_hours: 0, cnc_hours: 0, edgebander_hours: 0, assembly_hours: 0,
   delivery_hours: 0, installation_hours: 0,
+  admin_rate_overridden: false, cnc_rate_overridden: false,
+  edgebander_rate_overridden: false, assembly_rate_overridden: false,
+  delivery_rate_overridden: false, installation_rate_overridden: false,
   lines: [EMPTY_LINE()],
 });
 
@@ -27,7 +31,7 @@ const LABOUR_FIELDS = [
   { hoursField: 'admin_hours',        rateField: 'admin_rate',        type: 'admin',        label: 'Admin' },
   { hoursField: 'cnc_hours',          rateField: 'cnc_rate',          type: 'cnc',          label: 'CNC' },
   { hoursField: 'edgebander_hours',   rateField: 'edgebander_rate',   type: 'edgebander',   label: 'Edgebander' },
-  { hoursField: 'assembly_hours',     rateField: 'assembly_rate',     type: 'assembly',      label: 'Assembly' },
+  { hoursField: 'assembly_hours',     rateField: 'assembly_rate',     type: 'assembly',     label: 'Assembly' },
   { hoursField: 'delivery_hours',     rateField: 'delivery_rate',     type: 'delivery',     label: 'Delivery' },
   { hoursField: 'installation_hours', rateField: 'installation_rate', type: 'installation', label: 'Installation' },
 ];
@@ -51,6 +55,32 @@ function unitCalc(unit, margin, wastePct, labourRates) {
   return { matSub, wasteSub, hwSub, labourSub, unitCost, unitTotal };
 }
 
+function mapUnit(u) {
+  return {
+    ...u,
+    _key: u.id,
+    admin_hours:        u.admin_hours        ?? 0,
+    cnc_hours:          u.cnc_hours          ?? 0,
+    edgebander_hours:   u.edgebander_hours   ?? 0,
+    assembly_hours:     u.assembly_hours     ?? 0,
+    delivery_hours:     u.delivery_hours     ?? 0,
+    installation_hours: u.installation_hours ?? 0,
+    admin_rate:         Number(u.admin_rate        ?? 100),
+    cnc_rate:           Number(u.cnc_rate          ?? 100),
+    edgebander_rate:    Number(u.edgebander_rate   ?? 100),
+    assembly_rate:      Number(u.assembly_rate     ?? 100),
+    delivery_rate:      Number(u.delivery_rate     ?? 100),
+    installation_rate:  Number(u.installation_rate ?? 100),
+    admin_rate_overridden:        u.admin_rate_overridden        ?? false,
+    cnc_rate_overridden:          u.cnc_rate_overridden          ?? false,
+    edgebander_rate_overridden:   u.edgebander_rate_overridden   ?? false,
+    assembly_rate_overridden:     u.assembly_rate_overridden     ?? false,
+    delivery_rate_overridden:     u.delivery_rate_overridden     ?? false,
+    installation_rate_overridden: u.installation_rate_overridden ?? false,
+    lines: (u.lines || []).map(l => ({ ...l, _key: l.id, price_overridden: l.price_overridden ?? false })),
+  };
+}
+
 export default function QBQuoteBuilderPage() {
   const { id }         = useParams();
   const [searchParams] = useSearchParams();
@@ -62,8 +92,10 @@ export default function QBQuoteBuilderPage() {
   const [labourRates,  setLabourRates]  = useState({});
   const [saving,       setSaving]       = useState(false);
   const [loading,      setLoading]      = useState(!isNew);
-  const [linkedQuoteId,   setLinkedQuoteId]   = useState(null);  // FK → quotes.id
+  const [linkedQuoteId,   setLinkedQuoteId]   = useState(null);
   const [jtClientName,    setJtClientName]    = useState('');
+  const [rateDiff,     setRateDiff]     = useState(null); // { unitId, unitNum, materials, labour }
+  const [syncing,      setSyncing]      = useState(false);
 
   const [header, setHeader] = useState({
     quote_number: searchParams.get('quote_number') || '',
@@ -80,6 +112,9 @@ export default function QBQuoteBuilderPage() {
   const [units,          setUnits]          = useState([EMPTY_UNIT(1)]);
   const deletedUnitIds = useRef([]);
   const deletedLineIds = useRef([]);
+
+  // Rates are locked on accepted quotes only
+  const isLocked = header.status === 'accepted';
 
   // ── Load reference data ─────────────────────────────────────────────────
   useEffect(() => {
@@ -125,17 +160,7 @@ export default function QBQuoteBuilderPage() {
           status:       q.status,
           notes:        q.notes || '',
         });
-        setUnits(q.units.map(u => ({
-          ...u,
-          _key: u.id,
-          admin_hours:        u.admin_hours        ?? 0,
-          cnc_hours:          u.cnc_hours          ?? 0,
-          edgebander_hours:   u.edgebander_hours   ?? 0,
-          assembly_hours:     u.assembly_hours     ?? 0,
-          delivery_hours:     u.delivery_hours     ?? 0,
-          installation_hours: u.installation_hours ?? 0,
-          lines: (u.lines || []).map(l => ({ ...l, _key: l.id })),
-        })));
+        setUnits(q.units.map(mapUnit));
         deletedUnitIds.current = [];
         deletedLineIds.current = [];
       })
@@ -164,6 +189,15 @@ export default function QBQuoteBuilderPage() {
     setUnits(u => u.map(x => x._key === key ? { ...x, [field]: val } : x));
   }
 
+  // Sets a labour rate and marks it as manually overridden
+  function handleLabourRateChange(unitKey, rateField, type, val) {
+    setUnits(u => u.map(x => x._key !== unitKey ? x : {
+      ...x,
+      [rateField]: val,
+      [`${type}_rate_overridden`]: true,
+    }));
+  }
+
   // ── Line helpers ────────────────────────────────────────────────────────
   function addLine(unitKey) {
     setUnits(u => u.map(x => x._key === unitKey
@@ -190,6 +224,21 @@ export default function QBQuoteBuilderPage() {
     }));
   }
 
+  // Sets price and marks as overridden when the line is linked to the price list
+  function setLinePrice(unitKey, lineKey, val) {
+    setUnits(u => u.map(x => {
+      if (x._key !== unitKey) return x;
+      return {
+        ...x,
+        lines: x.lines.map(l => l._key !== lineKey ? l : {
+          ...l,
+          price: val,
+          price_overridden: l.price_list_id ? true : l.price_overridden,
+        }),
+      };
+    }));
+  }
+
   function pickProduct(unitKey, lineKey, plId) {
     const item = priceList.find(p => p.id === plId);
     if (!item) return;
@@ -199,14 +248,47 @@ export default function QBQuoteBuilderPage() {
         ...x,
         lines: x.lines.map(l => l._key !== lineKey ? l : {
           ...l,
-          price_list_id: item.id,
-          category: item.category,
-          product: item.product,
-          price: item.price,
+          price_list_id:   item.id,
+          category:        item.category,
+          product:         item.product,
+          price:           item.price,
           unit_of_measure: item.unit || '',
+          price_overridden: false, // fresh pick clears any previous override
         }),
       };
     }));
+  }
+
+  // ── Rate diff / sync ────────────────────────────────────────────────────
+  async function handleRefreshRates(unit) {
+    if (!unit.id) {
+      toast.info('Save the quote first, then you can refresh rates');
+      return;
+    }
+    try {
+      const res = await api.get(`/qb/quotes/${id}/units/${unit.id}/rate-diff`);
+      setRateDiff({ unitId: unit.id, unitNum: unit.unit_number, ...res.data });
+    } catch {
+      toast.error('Failed to check rates');
+    }
+  }
+
+  async function handleConfirmSync() {
+    if (!rateDiff) return;
+    setSyncing(true);
+    try {
+      const res = await api.post(`/qb/quotes/${id}/units/${rateDiff.unitId}/sync-rates`);
+      const q = res.data;
+      setUnits(q.units.map(mapUnit));
+      deletedUnitIds.current = [];
+      deletedLineIds.current = [];
+      setRateDiff(null);
+      toast.success('Rates updated');
+    } catch {
+      toast.error('Failed to sync rates');
+    } finally {
+      setSyncing(false);
+    }
   }
 
   // ── Save ────────────────────────────────────────────────────────────────
@@ -216,10 +298,10 @@ export default function QBQuoteBuilderPage() {
     try {
       const body = {
         ...header,
-        margin:            Number(header.margin) / 100,
-        waste_pct:         Number(header.waste_pct) / 100,
-        client_id:         header.client_id || null,
-        units:             units.map((u, i) => ({
+        margin:    Number(header.margin) / 100,
+        waste_pct: Number(header.waste_pct) / 100,
+        client_id: header.client_id || null,
+        units: units.map((u, i) => ({
           id:               u.id || undefined,
           unit_number:      u.unit_number,
           drawing_number:   u.drawing_number,
@@ -227,22 +309,36 @@ export default function QBQuoteBuilderPage() {
           level:            u.level,
           description:      u.description,
           quantity:         Number(u.quantity),
-          sort_order:         i,
+          sort_order:       i,
           admin_hours:        Number(u.admin_hours)        || 0,
           cnc_hours:          Number(u.cnc_hours)          || 0,
           edgebander_hours:   Number(u.edgebander_hours)   || 0,
           assembly_hours:     Number(u.assembly_hours)     || 0,
           delivery_hours:     Number(u.delivery_hours)     || 0,
           installation_hours: Number(u.installation_hours) || 0,
-          lines:          u.lines.map((l, j) => ({
-            id:             l.id || undefined,
-            price_list_id:  l.price_list_id || null,
-            category:       l.category,
-            product:        l.product,
-            price:          Number(l.price),
+          // Send current rates so manual overrides are persisted on UPDATE
+          admin_rate:        Number(u.admin_rate        ?? labourRates.admin        ?? 100),
+          cnc_rate:          Number(u.cnc_rate          ?? labourRates.cnc          ?? 100),
+          edgebander_rate:   Number(u.edgebander_rate   ?? labourRates.edgebander   ?? 100),
+          assembly_rate:     Number(u.assembly_rate     ?? labourRates.assembly     ?? 100),
+          delivery_rate:     Number(u.delivery_rate     ?? labourRates.delivery     ?? 100),
+          installation_rate: Number(u.installation_rate ?? labourRates.installation ?? 100),
+          admin_rate_overridden:        u.admin_rate_overridden        ?? false,
+          cnc_rate_overridden:          u.cnc_rate_overridden          ?? false,
+          edgebander_rate_overridden:   u.edgebander_rate_overridden   ?? false,
+          assembly_rate_overridden:     u.assembly_rate_overridden     ?? false,
+          delivery_rate_overridden:     u.delivery_rate_overridden     ?? false,
+          installation_rate_overridden: u.installation_rate_overridden ?? false,
+          lines: u.lines.map((l, j) => ({
+            id:              l.id || undefined,
+            price_list_id:   l.price_list_id || null,
+            category:        l.category,
+            product:         l.product,
+            price:           Number(l.price),
             unit_of_measure: l.unit_of_measure,
-            quantity:       Number(l.quantity),
-            sort_order:     j,
+            quantity:        Number(l.quantity),
+            sort_order:      j,
+            price_overridden: l.price_overridden ?? false,
           })).filter(l => l.product.trim()),
         })),
         deleted_unit_ids: deletedUnitIds.current,
@@ -257,12 +353,8 @@ export default function QBQuoteBuilderPage() {
       } else {
         res = await api.put(`/qb/quotes/${id}`, body);
         toast.success('Quote saved');
-        // Re-sync IDs
         const q = res.data;
-        setUnits(q.units.map(u => ({
-          ...u, _key: u.id,
-          lines: (u.lines || []).map(l => ({ ...l, _key: l.id })),
-        })));
+        setUnits(q.units.map(mapUnit));
         deletedUnitIds.current = [];
         deletedLineIds.current = [];
       }
@@ -271,7 +363,7 @@ export default function QBQuoteBuilderPage() {
     } finally {
       setSaving(false);
     }
-  }, [header, units, id, isNew, navigate]);
+  }, [header, units, id, isNew, navigate, labourRates]);
 
   // ── Derived totals ──────────────────────────────────────────────────────
   const margin    = Number(header.margin);
@@ -289,6 +381,7 @@ export default function QBQuoteBuilderPage() {
       <div className={styles.builderHeader}>
         <div className={styles.builderTitle}>
           {isNew ? 'New Quote' : `Editing ${header.quote_number}`}
+          {isLocked && <span className={styles.lockedBadge}>🔒 Accepted — Rates Locked</span>}
         </div>
         <div className={styles.builderActions}>
           {linkedQuoteId && (
@@ -311,7 +404,6 @@ export default function QBQuoteBuilderPage() {
       <div className="form-panel">
         <div className="form-panel-title">Quote Details</div>
 
-        {/* When linked to the Job Tracker, identity fields are read-only */}
         {linkedQuoteId ? (
           <>
             <div className={styles.linkedInfo}>
@@ -438,99 +530,114 @@ export default function QBQuoteBuilderPage() {
 
             {/* Lines table */}
             <div className={styles.linesTableWrap}>
-            <table className={styles.linesTable}>
-              <thead>
-                <tr>
-                  <th>Product</th>
-                  <th>Category</th>
-                  <th style={{ width: 80 }}>Qty</th>
-                  <th style={{ width: 100 }}>Price</th>
-                  <th style={{ width: 60 }}>UOM</th>
-                  <th style={{ width: 110, textAlign: 'right' }}>Total</th>
-                  <th style={{ width: 32 }}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {unit.lines.map(line => (
-                  <tr key={line._key}>
-                    <td>
-                      <select
-                        className={styles.productSelect}
-                        value={line.price_list_id || ''}
-                        onChange={e => {
-                          if (e.target.value === '__custom') {
-                            setLine(unit._key, line._key, 'price_list_id', null);
-                          } else {
-                            pickProduct(unit._key, line._key, e.target.value);
-                          }
-                        }}
-                      >
-                        <option value="">— pick from list —</option>
-                        <option value="__custom">Custom item…</option>
-                        {['Materials', 'Hardware'].map(cat => {
-                          const items = priceList.filter(p => p.category === cat);
-                          if (!items.length) return null;
-                          return (
-                            <optgroup key={cat} label={cat}>
-                              {items.map(p => (
-                                <option key={p.id} value={p.id}>{p.product} ({p.unit})</option>
-                              ))}
-                            </optgroup>
-                          );
-                        })}
-                      </select>
-                      {!line.price_list_id && (
-                        <input
-                          className={styles.customProduct}
-                          value={line.product}
-                          onChange={e => setLine(unit._key, line._key, 'product', e.target.value)}
-                          placeholder="Product description"
-                        />
-                      )}
-                    </td>
-                    <td>
-                      <select
-                        value={line.category}
-                        onChange={e => setLine(unit._key, line._key, 'category', e.target.value)}
-                        style={{ width: 110 }}
-                      >
-                        <option value="Materials">Materials</option>
-                        <option value="Hardware">Hardware</option>
-                      </select>
-                    </td>
-                    <td>
-                      <input
-                        type="number" min="0" step="any"
-                        value={line.quantity}
-                        onChange={e => setLine(unit._key, line._key, 'quantity', e.target.value)}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        type="number" min="0" step="any"
-                        value={line.price}
-                        onChange={e => setLine(unit._key, line._key, 'price', e.target.value)}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        value={line.unit_of_measure}
-                        onChange={e => setLine(unit._key, line._key, 'unit_of_measure', e.target.value)}
-                        placeholder="m2"
-                        style={{ width: 56 }}
-                      />
-                    </td>
-                    <td style={{ textAlign: 'right', fontWeight: 500 }}>
-                      {fmtMoney(Number(line.price) * Number(line.quantity))}
-                    </td>
-                    <td>
-                      <button className={styles.removeLine} onClick={() => removeLine(unit._key, line._key)} title="Remove line">✕</button>
-                    </td>
+              <table className={styles.linesTable}>
+                <thead>
+                  <tr>
+                    <th>Product</th>
+                    <th>Category</th>
+                    <th style={{ width: 80 }}>Qty</th>
+                    <th style={{ width: 110 }}>Price</th>
+                    <th style={{ width: 60 }}>UOM</th>
+                    <th style={{ width: 110, textAlign: 'right' }}>Total</th>
+                    <th style={{ width: 32 }}></th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-
+                </thead>
+                <tbody>
+                  {unit.lines.map(line => (
+                    <tr key={line._key}>
+                      <td>
+                        <select
+                          className={styles.productSelect}
+                          value={line.price_list_id || ''}
+                          disabled={isLocked}
+                          onChange={e => {
+                            if (e.target.value === '__custom') {
+                              setLine(unit._key, line._key, 'price_list_id', null);
+                            } else {
+                              pickProduct(unit._key, line._key, e.target.value);
+                            }
+                          }}
+                        >
+                          <option value="">— pick from list —</option>
+                          <option value="__custom">Custom item…</option>
+                          {['Materials', 'Hardware'].map(cat => {
+                            const items = priceList.filter(p => p.category === cat);
+                            if (!items.length) return null;
+                            return (
+                              <optgroup key={cat} label={cat}>
+                                {items.map(p => (
+                                  <option key={p.id} value={p.id}>{p.product} ({p.unit})</option>
+                                ))}
+                              </optgroup>
+                            );
+                          })}
+                        </select>
+                        {!line.price_list_id && (
+                          <input
+                            className={styles.customProduct}
+                            value={line.product}
+                            readOnly={isLocked}
+                            onChange={e => setLine(unit._key, line._key, 'product', e.target.value)}
+                            placeholder="Product description"
+                          />
+                        )}
+                      </td>
+                      <td>
+                        <select
+                          value={line.category}
+                          disabled={isLocked}
+                          onChange={e => setLine(unit._key, line._key, 'category', e.target.value)}
+                          style={{ width: 110 }}
+                        >
+                          <option value="Materials">Materials</option>
+                          <option value="Hardware">Hardware</option>
+                        </select>
+                      </td>
+                      <td>
+                        <input
+                          type="number" min="0" step="any"
+                          value={line.quantity}
+                          readOnly={isLocked}
+                          onChange={e => setLine(unit._key, line._key, 'quantity', e.target.value)}
+                        />
+                      </td>
+                      <td>
+                        <div className={styles.priceCell}>
+                          <input
+                            type="number" min="0" step="any"
+                            value={line.price}
+                            readOnly={isLocked}
+                            onChange={e => setLinePrice(unit._key, line._key, e.target.value)}
+                          />
+                          {line.price_list_id && line.price_overridden && !isLocked && (
+                            <span className={styles.overrideDot} title="Price manually overridden from price list">✎</span>
+                          )}
+                          {isLocked && line.price_list_id && (
+                            <span className={styles.lockedDot} title="Rate locked">🔒</span>
+                          )}
+                        </div>
+                      </td>
+                      <td>
+                        <input
+                          value={line.unit_of_measure}
+                          readOnly={isLocked}
+                          onChange={e => setLine(unit._key, line._key, 'unit_of_measure', e.target.value)}
+                          placeholder="m2"
+                          style={{ width: 56 }}
+                        />
+                      </td>
+                      <td style={{ textAlign: 'right', fontWeight: 500 }}>
+                        {fmtMoney(Number(line.price) * Number(line.quantity))}
+                      </td>
+                      <td>
+                        {!isLocked && (
+                          <button className={styles.removeLine} onClick={() => removeLine(unit._key, line._key)} title="Remove line">✕</button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
 
             {/* Labour hours */}
@@ -539,12 +646,32 @@ export default function QBQuoteBuilderPage() {
               <div className={styles.labourRow}>
                 {LABOUR_FIELDS.map(({ hoursField, rateField, type, label }) => {
                   const rate = Number(unit[rateField] ?? labourRates[type] ?? 100);
+                  const overridden = unit[`${type}_rate_overridden`];
                   return (
                     <div key={hoursField} className={styles.labourField}>
-                      <label>{label} <span className={styles.labourRateTag}>${rate}/hr</span></label>
+                      <label>
+                        {label}
+                        {!isLocked ? (
+                          <span className={styles.rateEditWrap}>
+                            $<input
+                              type="number" min="0" step="0.01"
+                              className={styles.rateInput}
+                              value={unit[rateField] ?? labourRates[type] ?? 100}
+                              title="Hourly rate — edit to override"
+                              onChange={e => handleLabourRateChange(unit._key, rateField, type, e.target.value)}
+                            />/hr
+                            {overridden && (
+                              <span className={styles.overrideDot} title="Rate manually overridden — will not update with price list changes">✎</span>
+                            )}
+                          </span>
+                        ) : (
+                          <span className={styles.labourRateTag}>${rate}/hr 🔒</span>
+                        )}
+                      </label>
                       <input
                         type="number" min="0" step="0.5"
                         value={unit[hoursField] ?? 0}
+                        readOnly={isLocked}
                         onChange={e => setUnit(unit._key, hoursField, e.target.value)}
                       />
                       <span className={styles.labourCost}>{fmtMoney(Number(unit[hoursField] ?? 0) * rate)}</span>
@@ -555,7 +682,9 @@ export default function QBQuoteBuilderPage() {
             </div>
 
             <div className={styles.unitFooter}>
-              <button className={styles.addLineBtn} onClick={() => addLine(unit._key)}>+ Add Line</button>
+              {!isLocked && (
+                <button className={styles.addLineBtn} onClick={() => addLine(unit._key)}>+ Add Line</button>
+              )}
               <div className={styles.unitTotals}>
                 <span>Materials: <strong>{fmtMoney(matSub)}</strong></span>
                 <span>Waste: <strong>{fmtMoney(wasteSub)}</strong></span>
@@ -563,12 +692,23 @@ export default function QBQuoteBuilderPage() {
                 <span>Labour: <strong>{fmtMoney(labourSub)}</strong></span>
                 <span>Unit cost × {unit.quantity}: <strong>{fmtMoney(unitTotal)}</strong></span>
               </div>
+              {!isLocked && unit.id && (
+                <button
+                  className={styles.refreshRatesBtn}
+                  onClick={() => handleRefreshRates(unit)}
+                  title="Compare current price list and labour rates against this unit's snapshot"
+                >
+                  ↻ Refresh Rates
+                </button>
+              )}
             </div>
           </div>
         );
       })}
 
-      <button className={styles.addUnitBtn} onClick={addUnit}>+ Add Unit</button>
+      {!isLocked && (
+        <button className={styles.addUnitBtn} onClick={addUnit}>+ Add Unit</button>
+      )}
 
       {/* ── Quote totals ── */}
       <div className={styles.quoteTotals}>
@@ -588,6 +728,70 @@ export default function QBQuoteBuilderPage() {
           {saving ? 'Saving…' : isNew ? 'Create Quote' : 'Save Quote'}
         </button>
       </div>
+
+      {/* ── Rate diff dialog ── */}
+      {rateDiff && (
+        <div className={styles.rateDiffOverlay} onClick={() => setRateDiff(null)}>
+          <div className={styles.rateDiffDialog} onClick={e => e.stopPropagation()}>
+            <div className={styles.rateDiffTitle}>Refresh Rates — Unit {rateDiff.unitNum}</div>
+
+            {rateDiff.materials.length === 0 && rateDiff.labour.length === 0 ? (
+              <p className={styles.rateDiffEmpty}>All rates are already up to date.</p>
+            ) : (
+              <>
+                {rateDiff.materials.length > 0 && (
+                  <div className={styles.rateDiffSection}>
+                    <div className={styles.rateDiffSectionTitle}>Materials &amp; Hardware</div>
+                    <table className={styles.rateDiffTable}>
+                      <tbody>
+                        {rateDiff.materials.map(d => (
+                          <tr key={d.line_id}>
+                            <td className={styles.rateDiffProduct}>{d.product}</td>
+                            <td className={styles.rateDiffOld}>{fmtMoney(d.stored_price)}</td>
+                            <td className={styles.rateDiffArrow}>→</td>
+                            <td className={styles.rateDiffNew}>{fmtMoney(d.current_price)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                {rateDiff.labour.length > 0 && (
+                  <div className={styles.rateDiffSection}>
+                    <div className={styles.rateDiffSectionTitle}>Labour</div>
+                    <table className={styles.rateDiffTable}>
+                      <tbody>
+                        {rateDiff.labour.map(d => (
+                          <tr key={d.type}>
+                            <td className={styles.rateDiffProduct} style={{ textTransform: 'capitalize' }}>{d.type}</td>
+                            <td className={styles.rateDiffOld}>${d.stored_rate}/hr</td>
+                            <td className={styles.rateDiffArrow}>→</td>
+                            <td className={styles.rateDiffNew}>${d.current_rate}/hr</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                <p className={styles.rateDiffNote}>
+                  Hours, quantities, and unit descriptions are unchanged. Only rates will update.
+                </p>
+              </>
+            )}
+
+            <div className={styles.rateDiffActions}>
+              <button className="btn btn-outline" onClick={() => setRateDiff(null)}>Cancel</button>
+              {(rateDiff.materials.length > 0 || rateDiff.labour.length > 0) ? (
+                <button className="btn btn-primary" onClick={handleConfirmSync} disabled={syncing}>
+                  {syncing ? 'Applying…' : 'Apply Updates →'}
+                </button>
+              ) : (
+                <button className="btn btn-primary" onClick={() => setRateDiff(null)}>OK</button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
