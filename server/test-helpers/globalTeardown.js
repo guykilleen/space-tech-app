@@ -14,6 +14,10 @@ module.exports = async function () {
     database: process.env.DB_NAME     || 'space_tech_design_test',
   });
   await db.connect();
-  await db.query('TRUNCATE jobs, quotes, users RESTART IDENTITY CASCADE');
+  await db.query(`
+    TRUNCATE qb_quote_headers, qb_contacts, qb_price_list, labour_rates,
+             jobs, quotes, users
+    RESTART IDENTITY CASCADE
+  `);
   await db.end();
 };

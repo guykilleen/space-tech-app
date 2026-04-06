@@ -719,11 +719,11 @@ async function syncRates(req, res) {
 
     await client.query('BEGIN');
 
-    // Update linked line prices to current price list; clear price_overridden
+    // Update linked line prices to current price list; clear price_overridden.
+    // total is a GENERATED column (price * quantity) — omit from SET.
     await client.query(`
       UPDATE qb_quote_unit_lines l
       SET price = p.price,
-          total = p.price * l.quantity,
           price_overridden = FALSE
       FROM qb_price_list p
       WHERE l.price_list_id = p.id
