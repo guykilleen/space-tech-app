@@ -130,8 +130,8 @@ async function _upsertFull(quoteId, body, client) {
            margin=$6, status=$7, notes=$8, waste_pct=$9
        WHERE id=$10`,
       [quote_number, date || new Date(), client_id || null, project || null,
-       prepared_by || null, margin ?? 0.10, status || 'draft', notes || null,
-       waste_pct ?? 0.05, quoteId]
+       prepared_by || null, margin ?? 0.15, status || 'draft', notes || null,
+       waste_pct ?? 0.10, quoteId]
     );
   } else {
     // INSERT header
@@ -140,7 +140,7 @@ async function _upsertFull(quoteId, body, client) {
          (quote_number, date, client_id, project, prepared_by, margin, waste_pct, status, notes, quote_id)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`,
       [quote_number, date || new Date(), client_id || null, project || null,
-       prepared_by || null, margin ?? 0.10, waste_pct ?? 0.05, status || 'draft', notes || null,
+       prepared_by || null, margin ?? 0.15, waste_pct ?? 0.10, status || 'draft', notes || null,
        quote_id || null]
     );
     quoteId = h.id;
@@ -831,8 +831,8 @@ async function createFromQuote(req, res) {
       date:         jt.date,
       project:      jt.project,
       prepared_by:  null,
-      margin:       0.10,
-      waste_pct:    0.05,
+      margin:       0.15,
+      waste_pct:    0.10,
       status:       'draft',
       notes:        null,
       client_id:    null,

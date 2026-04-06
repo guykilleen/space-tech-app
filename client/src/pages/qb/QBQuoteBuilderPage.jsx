@@ -103,8 +103,8 @@ export default function QBQuoteBuilderPage() {
     client_id:    '',
     project:      searchParams.get('project') || '',
     prepared_by:  '',
-    margin:       10,
-    waste_pct:    5,
+    margin:       15,
+    waste_pct:    10,
     status:       'draft',
     notes:        '',
   });
