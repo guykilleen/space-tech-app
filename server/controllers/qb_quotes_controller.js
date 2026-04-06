@@ -353,7 +353,7 @@ async function remove(req, res) {
 async function getSummary(req, res) {
   try {
     const { rows: [header] } = await pool.query(
-      `SELECT h.margin, h.waste_pct, c.name AS client_name, c.company, h.quote_number, h.date, h.project, h.prepared_by
+      `SELECT h.margin, h.waste_pct, c.name AS client_name, c.company AS contact_company, h.quote_number, h.date, h.project, h.prepared_by
        FROM qb_quote_headers h LEFT JOIN qb_contacts c ON h.client_id = c.id
        WHERE h.id = $1`,
       [req.params.id]
