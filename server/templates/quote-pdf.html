@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 11px;
+    color: #1A1A1A;
+    background: #fff;
+    padding: 36px 40px;
+  }
+
+  /* ── Header ─────────────────────────────────────────────── */
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding-bottom: 20px;
+    border-bottom: 3px solid #CC1414;
+    margin-bottom: 28px;
+  }
+  .logo-block {}
+  .logo {
+    font-size: 22px;
+    font-weight: 900;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #1A1A1A;
+  }
+  .logo span { color: #CC1414; }
+  .logo-sub {
+    font-size: 8.5px;
+    letter-spacing: 3px;
+    color: #888;
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+  .doc-type {
+    text-align: right;
+  }
+  .doc-type h1 {
+    font-size: 26px;
+    font-weight: 900;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: #CC1414;
+    line-height: 1;
+  }
+  .doc-type .quote-num {
+    font-size: 13px;
+    font-weight: bold;
+    color: #1A1A1A;
+    margin-top: 4px;
+  }
+
+  /* ── Address block ──────────────────────────────────────── */
+  .address-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 28px;
+    gap: 24px;
+  }
+  .address-block {
+    flex: 1;
+  }
+  .block-label {
+    font-size: 8px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #888;
+    margin-bottom: 8px;
+    border-bottom: 1px solid #EAEAEC;
+    padding-bottom: 4px;
+  }
+  .address-block p {
+    line-height: 1.7;
+    font-size: 11px;
+  }
+  .address-block p strong {
+    font-size: 12px;
+  }
+  .meta-block {
+    width: 240px;
+    flex-shrink: 0;
+  }
+  .meta-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .meta-table td {
+    padding: 5px 0;
+    font-size: 10.5px;
+    vertical-align: top;
+    border-bottom: 1px solid #F2F2F2;
+  }
+  .meta-table td:first-child {
+    color: #888;
+    font-size: 9px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    width: 100px;
+    padding-right: 12px;
+  }
+  .meta-table td:last-child {
+    font-weight: 600;
+    text-align: right;
+  }
+
+  /* ── Section heading ────────────────────────────────────── */
+  .section-heading {
+    font-size: 8.5px;
+    font-weight: bold;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: #888;
+    margin-bottom: 8px;
+  }
+
+  /* ── Items table ────────────────────────────────────────── */
+  table.items {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+  }
+  table.items thead tr {
+    background: #1A1A1A;
+  }
+  table.items thead th {
+    padding: 9px 10px;
+    text-align: left;
+    font-size: 8.5px;
+    font-weight: bold;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: #DDAAAA;
+    white-space: nowrap;
+  }
+  table.items thead th.right { text-align: right; }
+  table.items tbody tr:nth-child(odd)  { background: #FAFAFA; }
+  table.items tbody tr:nth-child(even) { background: #FFFFFF; }
+  table.items tbody td {
+    padding: 8px 10px;
+    font-size: 10.5px;
+    border-bottom: 1px solid #EAEAEC;
+    vertical-align: top;
+  }
+  table.items tbody td.right { text-align: right; }
+  table.items tbody td.muted { color: #666; font-size: 10px; }
+  table.items tfoot tr { background: #F5F5F5; }
+  table.items tfoot td {
+    padding: 8px 10px;
+    font-size: 10px;
+    color: #666;
+  }
+  .item-desc { font-weight: 600; }
+  .item-sub  { font-size: 9.5px; color: #666; margin-top: 2px; }
+
+  /* ── Totals ─────────────────────────────────────────────── */
+  .totals-wrap {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 28px;
+  }
+  table.totals {
+    width: 280px;
+    border-collapse: collapse;
+  }
+  table.totals td {
+    padding: 6px 0 6px 16px;
+    font-size: 10.5px;
+    border-bottom: 1px solid #F0F0F0;
+  }
+  table.totals td:first-child {
+    color: #666;
+    font-size: 9px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding-left: 0;
+  }
+  table.totals td:last-child {
+    text-align: right;
+    font-weight: 600;
+  }
+  table.totals tr.grand td {
+    border-top: 2px solid #CC1414;
+    border-bottom: none;
+    padding-top: 10px;
+    font-size: 13px;
+    font-weight: 900;
+    color: #CC1414;
+  }
+  table.totals tr.grand td:first-child {
+    font-size: 10px;
+    color: #CC1414;
+    font-weight: 700;
+  }
+
+  /* ── Notes ──────────────────────────────────────────────── */
+  .notes-section {
+    background: #F9F9F9;
+    border-left: 3px solid #CC1414;
+    padding: 12px 16px;
+    margin-bottom: 28px;
+    font-size: 10px;
+    color: #444;
+    line-height: 1.6;
+  }
+  .notes-section strong {
+    display: block;
+    font-size: 8.5px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #888;
+    margin-bottom: 6px;
+  }
+
+  /* ── Footer ─────────────────────────────────────────────── */
+  .footer {
+    border-top: 1px solid #EAEAEC;
+    padding-top: 12px;
+    font-size: 9px;
+    color: #999;
+    line-height: 1.8;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+  .footer-left {}
+  .footer-right {
+    text-align: right;
+  }
+  .footer .footer-divider { color: #ccc; margin: 0 6px; }
+</style>
+</head>
+<body>
+
+  <!-- ── Header ─────────────────────────────────────────── -->
+  <div class="header">
+    <div class="logo-block">
+      <div class="logo">SPACE<span>TECH</span> DESIGN</div>
+      <div class="logo-sub">Joinery &amp; Cabinet Making</div>
+    </div>
+    <div class="doc-type">
+      <h1>Quote</h1>
+      <div class="quote-num">{{QUOTE_NUMBER}}</div>
+    </div>
+  </div>
+
+  <!-- ── Address / Meta row ─────────────────────────────── -->
+  <div class="address-row">
+    <div class="address-block">
+      <div class="block-label">Prepared for</div>
+      <p>
+        {{CLIENT_BLOCK}}
+      </p>
+    </div>
+
+    <div class="meta-block">
+      <div class="block-label">Quote Details</div>
+      <table class="meta-table">
+        <tr><td>Quote No.</td><td>{{QUOTE_NUMBER}}</td></tr>
+        <tr><td>Date</td><td>{{DATE}}</td></tr>
+        {{PREPARED_BY_ROW}}
+        {{PROJECT_ROW}}
+        <tr><td>Status</td><td>{{STATUS_BADGE}}</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Line Items ─────────────────────────────────────── -->
+  <div class="section-heading">Summary of Works</div>
+  <table class="items">
+    <thead>
+      <tr>
+        <th style="width:42px">Unit</th>
+        <th style="width:80px">Room / Level</th>
+        <th>Description</th>
+        <th style="width:46px">Drawing</th>
+        <th class="right" style="width:40px">Qty</th>
+        <th class="right" style="width:90px">Unit Price</th>
+        <th class="right" style="width:90px">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{UNIT_ROWS}}
+    </tbody>
+  </table>
+
+  <!-- ── Totals ─────────────────────────────────────────── -->
+  <div class="totals-wrap">
+    <table class="totals">
+      <tr><td>Subtotal (ex GST)</td><td>{{SUBTOTAL}}</td></tr>
+      <tr><td>GST 10%</td><td>{{GST}}</td></tr>
+      <tr class="grand"><td>Total (inc. GST)</td><td>{{TOTAL_INCL_GST}}</td></tr>
+    </table>
+  </div>
+
+  <!-- ── Notes (conditional) ───────────────────────────── -->
+  {{NOTES_BLOCK}}
+
+  <!-- ── Footer ─────────────────────────────────────────── -->
+  <div class="footer">
+    <div class="footer-left">
+      Space Tech Design Pty Ltd
+      <span class="footer-divider">·</span>
+      ABN 73 608 008 395
+      <span class="footer-divider">·</span>
+      mob: 0413 242 023
+      <span class="footer-divider">·</span>
+      guy@spacetechdesign.com.au
+    </div>
+    <div class="footer-right">
+      No allowance has been made for glazing or door hardware<br>machining unless otherwise stated.
+    </div>
+  </div>
+
+</body>
+</html>

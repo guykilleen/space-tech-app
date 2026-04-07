@@ -96,6 +96,7 @@ export default function QBQuoteBuilderPage() {
   const [jtClientName,    setJtClientName]    = useState('');
   const [rateDiff,     setRateDiff]     = useState(null); // { unitId, unitNum, materials, labour }
   const [syncing,      setSyncing]      = useState(false);
+  const [pdfLoading,   setPdfLoading]   = useState(false);
 
   const [header, setHeader] = useState({
     quote_number: searchParams.get('quote_number') || '',
@@ -291,6 +292,26 @@ export default function QBQuoteBuilderPage() {
     }
   }
 
+  // ── PDF ─────────────────────────────────────────────────────────────────
+  async function handleOpenPdf() {
+    setPdfLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/qb/quotes/${id}/pdf`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error(`PDF failed: ${res.status}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+    } catch {
+      toast.error('Failed to generate PDF');
+    } finally {
+      setPdfLoading(false);
+    }
+  }
+
   // ── Save ────────────────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
     if (!header.quote_number.trim()) return toast.error('Quote number required');
@@ -391,7 +412,7 @@ export default function QBQuoteBuilderPage() {
             <>
               <button className="btn btn-outline" onClick={() => navigate(`/qb/quotes/${id}/summary`)}>Summary →</button>
               <button className="btn btn-outline" onClick={() => navigate(`/qb/quotes/${id}/budget`)}>Budget Qty →</button>
-              <a className="btn btn-outline" href={`/api/qb/quotes/${id}/pdf`} target="_blank" rel="noreferrer">PDF →</a>
+              <button type="button" className="btn btn-outline" onClick={handleOpenPdf} disabled={pdfLoading}>{pdfLoading ? 'Generating…' : 'PDF →'}</button>
             </>
           )}
           <button className="btn btn-primary" onClick={handleSave} disabled={saving}>

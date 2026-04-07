@@ -1,4 +1,6 @@
 const pool = require('../config/db');
+const fs   = require('fs');
+const path = require('path');
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -508,7 +510,6 @@ async function getBudgetQty(req, res) {
 }
 
 async function getPdf(req, res) {
-  // Puppeteer must be installed: npm install puppeteer --prefix server
   let puppeteer;
   try { puppeteer = require('puppeteer'); } catch {
     return res.status(501).json({ error: 'PDF generation requires puppeteer: run npm install puppeteer --prefix server' });
@@ -518,13 +519,14 @@ async function getPdf(req, res) {
     const quote = await fetchFull(req.params.id);
     if (!quote) return res.status(404).json({ error: 'Not found' });
 
-    // Build summary data
-    const margin = Number(quote.margin);
-    let subtotal = 0;
-    const wastePct  = Number(quote.waste_pct);
-    const unitRows  = quote.units.map(u => {
+    // ── Calculations ──────────────────────────────────────────────────────
+    const margin   = Number(quote.margin);
+    const wastePct = Number(quote.waste_pct);
+    let subtotal   = 0;
+
+    const unitRows = quote.units.map(u => {
       const matSub    = u.lines.filter(l => l.category === 'Materials').reduce((s, l) => s + Number(l.total), 0);
-      const hwSub     = u.lines.filter(l => l.category === 'Hardware').reduce((s, l) => s + Number(l.total), 0);
+      const hwSub     = u.lines.filter(l => l.category === 'Hardware').reduce((s, l)  => s + Number(l.total), 0);
       const labourSub = Number(u.admin_hours)       * Number(u.admin_rate) +
                         Number(u.cnc_hours)          * Number(u.cnc_rate) +
                         Number(u.edgebander_hours)   * Number(u.edgebander_rate) +
@@ -536,97 +538,103 @@ async function getPdf(req, res) {
       subtotal += total;
       return { ...u, unit_cost: unitCost, total };
     });
+
     const gst            = subtotal * 0.10;
     const total_incl_gst = subtotal + gst;
 
+    // ── Formatters ────────────────────────────────────────────────────────
     const fmt  = v => new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(v);
-    const fmtD = v => v ? new Date(v).toLocaleDateString('en-AU') : '';
+    const fmtD = v => v ? new Date(v).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
+    const esc  = s => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
-    const unitHTML = unitRows.map(u => `
+    // ── Build unit rows HTML ──────────────────────────────────────────────
+    const unitRowsHtml = unitRows.map(u => {
+      const roomLevel = [u.room_number, u.level].filter(Boolean).join(' / ');
+      return `
       <tr>
-        <td>${u.unit_number}</td>
-        <td>${u.room_number || ''}</td>
-        <td>${u.description || ''}</td>
-        <td>${u.drawing_number || ''}</td>
-        <td style="text-align:right">${u.quantity}</td>
-        <td style="text-align:right">${fmt(u.unit_cost)}</td>
-        <td style="text-align:right">${fmt(u.total)}</td>
-      </tr>`).join('');
+        <td class="muted">${esc(u.unit_number)}</td>
+        <td class="muted">${esc(roomLevel)}</td>
+        <td>
+          ${u.description ? `<div class="item-desc">${esc(u.description)}</div>` : ''}
+          ${u.drawing_number ? `<div class="item-sub">Dwg: ${esc(u.drawing_number)}</div>` : ''}
+        </td>
+        <td class="muted">&nbsp;</td>
+        <td class="right">${Number(u.quantity) % 1 === 0 ? Number(u.quantity) : Number(u.quantity).toFixed(2)}</td>
+        <td class="right">${fmt(u.unit_cost)}</td>
+        <td class="right"><strong>${fmt(u.total)}</strong></td>
+      </tr>`;
+    }).join('');
 
-    const html = `<!DOCTYPE html><html><head>
-<meta charset="UTF-8">
-<style>
-  body { font-family: 'Arial', sans-serif; font-size: 11px; color: #1A1A1A; margin: 0; padding: 32px; }
-  .header { display: flex; justify-content: space-between; border-bottom: 3px solid #CC1414; padding-bottom: 16px; margin-bottom: 24px; }
-  .logo { font-size: 20px; font-weight: bold; letter-spacing: 2px; }
-  .logo span { color: #CC1414; }
-  .meta td { padding: 3px 8px; font-size: 10px; }
-  .meta td:first-child { color: #888; text-transform: uppercase; letter-spacing: 1px; }
-  h2 { font-size: 13px; letter-spacing: 2px; text-transform: uppercase; color: #888; margin: 20px 0 8px; }
-  table.items { width: 100%; border-collapse: collapse; }
-  table.items thead { background: #1A1A1A; color: #E8AAAA; }
-  table.items th { padding: 8px 10px; text-align: left; font-size: 9px; letter-spacing: 1px; text-transform: uppercase; }
-  table.items td { padding: 7px 10px; border-bottom: 1px solid #EAEAEC; }
-  .totals { margin-top: 16px; margin-left: auto; width: 280px; }
-  .totals tr td:first-child { color: #888; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; padding: 4px 0; }
-  .totals tr td:last-child { text-align: right; font-weight: bold; }
-  .totals .grand td { border-top: 2px solid #CC1414; padding-top: 8px; font-size: 13px; color: #CC1414; }
-  .footer { margin-top: 40px; font-size: 9px; color: #888; border-top: 1px solid #EAEAEC; padding-top: 12px; }
-</style>
-</head><body>
-<div class="header">
-  <div>
-    <div class="logo">SPACE<span>TECH</span> DESIGN</div>
-    <div style="font-size:9px;color:#888;letter-spacing:2px;margin-top:4px">JOINERY ESTIMATING QUOTE</div>
-  </div>
-  <table class="meta">
-    <tr><td>Quote No.</td><td><strong>${quote.quote_number}</strong></td></tr>
-    <tr><td>Date</td><td>${fmtD(quote.date)}</td></tr>
-    <tr><td>Client</td><td>${quote.contact_name || ''} ${quote.contact_company ? '— ' + quote.contact_company : ''}</td></tr>
-    <tr><td>Project</td><td>${quote.project || ''}</td></tr>
-    <tr><td>Prepared by</td><td>${quote.prepared_by || ''}</td></tr>
-  </table>
-</div>
+    // ── Build client block ────────────────────────────────────────────────
+    const clientLines = [
+      quote.contact_name    ? `<strong>${esc(quote.contact_name)}</strong>` : null,
+      quote.contact_company ? esc(quote.contact_company)                    : null,
+      quote.contact_email   ? esc(quote.contact_email)                      : null,
+      quote.contact_phone   ? esc(quote.contact_phone)                      : null,
+    ].filter(Boolean);
+    const clientBlock = clientLines.length
+      ? clientLines.join('<br>')
+      : '<em style="color:#aaa">No client details</em>';
 
-<h2>Summary of Works</h2>
-<table class="items">
-  <thead>
-    <tr>
-      <th>Unit</th><th>Room</th><th>Description</th><th>Drawing</th>
-      <th style="text-align:right">Qty</th>
-      <th style="text-align:right">Unit Price</th>
-      <th style="text-align:right">Total</th>
-    </tr>
-  </thead>
-  <tbody>${unitHTML}</tbody>
-</table>
+    // ── Optional template rows ────────────────────────────────────────────
+    const preparedByRow = quote.prepared_by
+      ? `<tr><td>Prepared by</td><td>${esc(quote.prepared_by)}</td></tr>`
+      : '';
+    const projectRow = quote.project
+      ? `<tr><td>Project</td><td>${esc(quote.project)}</td></tr>`
+      : '';
 
-<table class="totals">
-  <tr><td>Subtotal (ex GST)</td><td>${fmt(subtotal)}</td></tr>
-  <tr><td>GST (10%)</td><td>${fmt(gst)}</td></tr>
-  <tr class="grand"><td>Total (incl. GST)</td><td>${fmt(total_incl_gst)}</td></tr>
-</table>
+    const statusLabels = { draft: 'Draft', pending: 'Pending', sent: 'Sent', accepted: 'Accepted', declined: 'Declined' };
+    const statusBadge = statusLabels[quote.status] || esc(quote.status);
 
-${quote.notes ? `<p style="margin-top:24px;font-size:10px;color:#555"><strong>Notes:</strong> ${quote.notes}</p>` : ''}
+    const notesBlock = quote.notes
+      ? `<div class="notes-section"><strong>Notes</strong>${esc(quote.notes)}</div>`
+      : '';
 
-<div class="footer">
-  Space Tech Design Pty Ltd &nbsp;·&nbsp; ABN 73 608 008 395 &nbsp;·&nbsp; mob: 0413 242 023 &nbsp;·&nbsp; guy@spacetechdesign.com.au<br>
-  No allowance has been made for glazing or door hardware machining unless otherwise stated.
-</div>
-</body></html>`;
+    // ── Filename ─────────────────────────────────────────────────────────
+    const clientSlug = (quote.contact_company || quote.contact_name || 'Client')
+      .replace(/[^a-zA-Z0-9 ]/g, '')
+      .trim()
+      .replace(/\s+/g, '-');
+    const filename = `Quote-${quote.quote_number}-${clientSlug}.pdf`;
 
+    // ── Load template and inject ──────────────────────────────────────────
+    const templatePath = path.join(__dirname, '../templates/quote-pdf.html');
+    let html = fs.readFileSync(templatePath, 'utf8');
+
+    html = html
+      .replace(/\{\{QUOTE_NUMBER\}\}/g,  esc(quote.quote_number))
+      .replace(/\{\{DATE\}\}/g,           fmtD(quote.date))
+      .replace(/\{\{CLIENT_BLOCK\}\}/g,   clientBlock)
+      .replace(/\{\{PREPARED_BY_ROW\}\}/g, preparedByRow)
+      .replace(/\{\{PROJECT_ROW\}\}/g,    projectRow)
+      .replace(/\{\{STATUS_BADGE\}\}/g,   statusBadge)
+      .replace(/\{\{UNIT_ROWS\}\}/g,      unitRowsHtml)
+      .replace(/\{\{SUBTOTAL\}\}/g,       fmt(subtotal))
+      .replace(/\{\{GST\}\}/g,            fmt(gst))
+      .replace(/\{\{TOTAL_INCL_GST\}\}/g, fmt(total_incl_gst))
+      .replace(/\{\{NOTES_BLOCK\}\}/g,    notesBlock);
+
+    // ── Render PDF ────────────────────────────────────────────────────────
     const browser = await puppeteer.launch({
       headless: 'new',
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'networkidle0' });
-    const pdf = await page.pdf({ format: 'A4', printBackground: true, margin: { top: '20mm', bottom: '20mm', left: '15mm', right: '15mm' } });
+    const pdfBytes = await page.pdf({
+      format: 'A4',
+      printBackground: true,
+      margin: { top: '18mm', bottom: '18mm', left: '0mm', right: '0mm' },
+    });
     await browser.close();
+
+    // puppeteer v21+ returns Uint8Array — convert to Buffer for Express
+    const pdf = Buffer.from(pdfBytes);
 
     res.set({
       'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="${quote.quote_number}.pdf"`,
+      'Content-Disposition': `inline; filename="${filename}"`,
     });
     res.send(pdf);
   } catch (err) {

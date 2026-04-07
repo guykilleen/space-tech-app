@@ -16,12 +16,32 @@ export default function QBQuoteSummaryPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [data, setData] = useState(null);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     api.get(`/qb/quotes/${id}/summary`)
       .then(r => setData(r.data))
       .catch(() => toast.error('Failed to load summary'));
   }, [id]);
+
+  async function handleDownloadPdf() {
+    setDownloading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/qb/quotes/${id}/pdf`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error(`PDF failed: ${res.status}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+    } catch {
+      toast.error('Failed to generate PDF');
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   if (!data) return <div style={{ padding: 48, color: 'var(--muted)', fontSize: '.8rem' }}>Loading…</div>;
 
@@ -33,7 +53,9 @@ export default function QBQuoteSummaryPage() {
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
           <button className="btn btn-outline" onClick={() => navigate(`/qb/quotes/${id}`)}>← Edit</button>
           <button className="btn btn-outline" onClick={() => navigate(`/qb/quotes/${id}/budget`)}>Budget Qty →</button>
-          <a className="btn btn-primary" href={`/api/qb/quotes/${id}/pdf`} target="_blank" rel="noreferrer">Download PDF →</a>
+          <button type="button" className="btn btn-primary" onClick={handleDownloadPdf} disabled={downloading}>
+            {downloading ? 'Generating…' : 'Download PDF'}
+          </button>
         </div>
       </div>
 
