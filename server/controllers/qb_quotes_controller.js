@@ -510,10 +510,8 @@ async function getBudgetQty(req, res) {
 }
 
 async function getPdf(req, res) {
-  let puppeteer;
-  try { puppeteer = require('puppeteer'); } catch {
-    return res.status(501).json({ error: 'PDF generation requires puppeteer: run npm install puppeteer --prefix server' });
-  }
+  // puppeteer (full) used for local dev; puppeteer-core + @sparticuz/chromium used in production
+  const puppeteer = process.env.NODE_ENV !== 'production' ? require('puppeteer') : null;
 
   try {
     const quote = await fetchFull(req.params.id);
@@ -616,16 +614,25 @@ async function getPdf(req, res) {
       .replace(/\{\{NOTES_BLOCK\}\}/g,    notesBlock);
 
     // ── Render PDF ────────────────────────────────────────────────────────
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',   // required on Railway / Docker (small /dev/shm)
-        '--disable-gpu',
-        '--no-zygote',
-      ],
-    });
+    // In production (Railway/Linux) use @sparticuz/chromium — self-contained
+    // binary that doesn't need system Chromium dependencies.
+    // In local dev (Windows) fall back to the full puppeteer bundled Chrome.
+    let browser;
+    if (process.env.NODE_ENV === 'production') {
+      const chromium = require('@sparticuz/chromium');
+      const puppeteerCore = require('puppeteer-core');
+      browser = await puppeteerCore.launch({
+        args: chromium.args,
+        defaultViewport: chromium.defaultViewport,
+        executablePath: await chromium.executablePath(),
+        headless: chromium.headless,
+      });
+    } else {
+      browser = await puppeteer.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--no-zygote'],
+      });
+    }
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'load' });
     const pdfBytes = await page.pdf({
