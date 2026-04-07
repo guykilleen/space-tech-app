@@ -510,8 +510,6 @@ async function getBudgetQty(req, res) {
 }
 
 async function getPdf(req, res) {
-  // puppeteer (full) used for local dev; puppeteer-core + @sparticuz/chromium used in production
-  const puppeteer = process.env.NODE_ENV !== 'production' ? require('puppeteer') : null;
 
   try {
     const quote = await fetchFull(req.params.id);
@@ -614,11 +612,24 @@ async function getPdf(req, res) {
       .replace(/\{\{NOTES_BLOCK\}\}/g,    notesBlock);
 
     // ── Render PDF ────────────────────────────────────────────────────────
-    // In production (Railway/Linux) use @sparticuz/chromium — self-contained
-    // binary that doesn't need system Chromium dependencies.
-    // In local dev (Windows) fall back to the full puppeteer bundled Chrome.
+    // Launch priority:
+    //   1. PUPPETEER_EXECUTABLE_PATH set (Dockerfile — system Chromium via apt)
+    //   2. NODE_ENV=production without exec path (@sparticuz/chromium fallback)
+    //   3. Local dev — full puppeteer with its bundled Chrome
+    const CHROMIUM_ARGS = [
+      '--no-sandbox', '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage', '--disable-gpu', '--no-zygote',
+    ];
     let browser;
-    if (process.env.NODE_ENV === 'production') {
+    const sysExecPath = process.env.PUPPETEER_EXECUTABLE_PATH;
+    if (sysExecPath) {
+      console.log('[PDF] using system Chromium:', sysExecPath);
+      const puppeteerCore = require('puppeteer-core');
+      browser = await puppeteerCore.launch({
+        headless: true, executablePath: sysExecPath, args: CHROMIUM_ARGS,
+      });
+    } else if (process.env.NODE_ENV === 'production') {
+      console.log('[PDF] using @sparticuz/chromium');
       const chromium = require('@sparticuz/chromium');
       const puppeteerCore = require('puppeteer-core');
       browser = await puppeteerCore.launch({
@@ -628,10 +639,9 @@ async function getPdf(req, res) {
         headless: chromium.headless,
       });
     } else {
-      browser = await puppeteer.launch({
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--no-zygote'],
-      });
+      console.log('[PDF] using local puppeteer (dev)');
+      const puppeteer = require('puppeteer');
+      browser = await puppeteer.launch({ headless: true, args: CHROMIUM_ARGS });
     }
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'load' });
