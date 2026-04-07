@@ -28,6 +28,12 @@ export default function QBQuoteSummaryPage() {
     setDownloading(true);
     try {
       const token = localStorage.getItem('token');
+      console.log('[PDF] token present:', !!token, '| value:', token);
+      if (!token) {
+        toast.error('Not authenticated — please log in again');
+        setDownloading(false);
+        return;
+      }
       const res = await fetch(`/api/qb/quotes/${id}/pdf`, {
         headers: { Authorization: `Bearer ${token}` },
       });

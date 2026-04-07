@@ -617,11 +617,17 @@ async function getPdf(req, res) {
 
     // ── Render PDF ────────────────────────────────────────────────────────
     const browser = await puppeteer.launch({
-      headless: 'new',
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',   // required on Railway / Docker (small /dev/shm)
+        '--disable-gpu',
+        '--no-zygote',
+      ],
     });
     const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: 'networkidle0' });
+    await page.setContent(html, { waitUntil: 'load' });
     const pdfBytes = await page.pdf({
       format: 'A4',
       printBackground: true,
@@ -638,8 +644,9 @@ async function getPdf(req, res) {
     });
     res.send(pdf);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'PDF generation failed' });
+    console.error('[PDF] generation error:', err.message);
+    console.error(err.stack);
+    res.status(500).json({ error: 'PDF generation failed', detail: err.message });
   }
 }
 

@@ -297,6 +297,12 @@ export default function QBQuoteBuilderPage() {
     setPdfLoading(true);
     try {
       const token = localStorage.getItem('token');
+      console.log('[PDF] token present:', !!token, '| value:', token);
+      if (!token) {
+        toast.error('Not authenticated — please log in again');
+        setPdfLoading(false);
+        return;
+      }
       const res = await fetch(`/api/qb/quotes/${id}/pdf`, {
         headers: { Authorization: `Bearer ${token}` },
       });
