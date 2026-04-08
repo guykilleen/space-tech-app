@@ -289,7 +289,23 @@ async function create(req, res) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const quoteId = await _upsertFull(null, req.body, client);
+
+    // Resolve client name for the tracker entry
+    let clientName = null;
+    if (req.body.client_id) {
+      const { rows: [c] } = await client.query('SELECT name FROM qb_contacts WHERE id = $1', [req.body.client_id]);
+      clientName = c?.name || null;
+    }
+
+    // Auto-create a linked job-tracker quote so QB is the single source of truth
+    const { rows: [jtRow] } = await client.query(
+      `INSERT INTO quotes (quote_number, date, client_name, project, initials, value, status)
+       VALUES ($1, $2, $3, $4, $5, 0, 'pending') RETURNING id`,
+      [req.body.quote_number, req.body.date || new Date(),
+       clientName, req.body.project || null, req.body.prepared_by || null]
+    );
+
+    const quoteId = await _upsertFull(null, { ...req.body, quote_id: jtRow.id }, client);
     await client.query('COMMIT');
     const quote = await fetchFull(quoteId);
     res.status(201).json(quote);

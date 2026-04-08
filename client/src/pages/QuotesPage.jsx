@@ -21,8 +21,6 @@ function fmtMoney(v) {
   return (v != null && v !== '') ? new Intl.NumberFormat('en-AU', { style:'currency', currency:'AUD' }).format(v) : '—';
 }
 
-const today = new Date().toISOString().split('T')[0];
-
 export default function QuotesPage() {
   const { isAdminOrMgr } = useAuth();
   const navigate = useNavigate();
@@ -34,19 +32,6 @@ export default function QuotesPage() {
   const [buildingId,  setBuildingId]  = useState(null); // QB open in progress
   const [qCount, setQCount]           = useState(0);
 
-  // New quote form state
-  const [form, setForm] = useState({
-    quote_number:'', initials:'', date: today, client_name:'', project:'',
-    value:'', status:'pending', accept_details:'', accept_date:'',
-  });
-
-  async function loadNextNumber() {
-    try {
-      const res = await api.get('/quotes/next-number');
-      setForm(f => ({ ...f, quote_number: res.data.next_number }));
-    } catch { /* ignore */ }
-  }
-
   async function load(params = {}) {
     const res = await api.get('/quotes', { params });
     const data = res.data;
@@ -55,7 +40,7 @@ export default function QuotesPage() {
     return data;
   }
 
-  useEffect(() => { load(); loadNextNumber(); }, []);
+  useEffect(() => { load(); }, []);
 
   const filtered = quotes.filter(q => {
     if (!search) return true;
@@ -69,19 +54,6 @@ export default function QuotesPage() {
     const nb = parseInt((b.quote_number||'').match(/(\d+)$/)?.[1] || '0', 10);
     return nb - na;
   });
-
-  async function handleSaveNew(e) {
-    e.preventDefault();
-    try {
-      await api.post('/quotes', form);
-      toast.success('Quote saved');
-      setForm({ quote_number:'', initials:'', date: today, client_name:'', project:'', value:'', status:'pending', accept_details:'', accept_date:'' });
-      await load();
-      await loadNextNumber();
-    } catch (err) {
-      toast.error(err.response?.data?.error || 'Save failed');
-    }
-  }
 
   function openEdit(q) {
     setEditId(q.id);
@@ -126,66 +98,15 @@ export default function QuotesPage() {
   return (
     <div className={styles.page}>
 
-      {/* ── New Quote Form ── */}
-      <div className="section-header">
-        <h1 className="section-title">Quote Intake</h1>
-        <span className="section-tag">New Entry</span>
-      </div>
-
-      <form className="form-panel" onSubmit={handleSaveNew}>
-        <div className="form-panel-title">Quote Details</div>
-        <div className="form-grid cols-4">
-          <div className="field">
-            <label>Quote Number</label>
-            <input value={form.quote_number} onChange={e => setForm(f=>({...f,quote_number:e.target.value}))} placeholder="V-0001" />
-          </div>
-          <div className="field">
-            <label>Preparer's Initials</label>
-            <input value={form.initials} onChange={e => setForm(f=>({...f,initials:e.target.value}))} placeholder="G.K." maxLength={6} />
-          </div>
-          <div className="field">
-            <label>Date</label>
-            <input type="date" value={form.date} onChange={e => setForm(f=>({...f,date:e.target.value}))} />
-          </div>
-          <div className="field">
-            <label>Quote Value ($ excl. GST)</label>
-            <input type="number" value={form.value} onChange={e => setForm(f=>({...f,value:e.target.value}))} placeholder="0.00" step="0.01" min="0" />
-          </div>
-          <div className="field span-2">
-            <label>Client Name</label>
-            <input required value={form.client_name} onChange={e => setForm(f=>({...f,client_name:e.target.value}))} placeholder="Client full name or company" />
-          </div>
-          <div className="field span-2">
-            <label>Project Name</label>
-            <input value={form.project} onChange={e => setForm(f=>({...f,project:e.target.value}))} placeholder="Project description or title" />
-          </div>
-          <div className="field">
-            <label>Status</label>
-            <select value={form.status} onChange={e => setForm(f=>({...f,status:e.target.value}))}>
-              {STATUSES.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase()+s.slice(1).replace('_',' ')}</option>)}
-            </select>
-          </div>
-          <div className="field">
-            <label>Acceptance Date</label>
-            <input type="date" value={form.accept_date} onChange={e => setForm(f=>({...f,accept_date:e.target.value}))} />
-          </div>
-          <div className="field span-2">
-            <label>Acceptance Details</label>
-            <input value={form.accept_details} onChange={e => setForm(f=>({...f,accept_details:e.target.value}))} placeholder="PO number, verbal, email ref…" />
-          </div>
-        </div>
-        {isAdminOrMgr && (
-          <div className="btn-row">
-            <button type="button" className="btn btn-outline" onClick={() => { setForm({ quote_number:'', initials:'', date:today, client_name:'', project:'', value:'', status:'pending', accept_details:'', accept_date:'' }); loadNextNumber(); }}>Clear</button>
-            <button type="submit" className="btn btn-primary">Save Quote →</button>
-          </div>
-        )}
-      </form>
-
       {/* ── Quote Register ── */}
-      <div className="section-header" style={{ marginTop: 40 }}>
-        <h2 className="section-title">Quote Register</h2>
+      <div className="section-header">
+        <h1 className="section-title">Quote Register</h1>
         <span className="section-tag" id="q-count">{qCount} Entr{qCount === 1 ? 'y' : 'ies'}</span>
+        {isAdminOrMgr && (
+          <button className="btn btn-primary" style={{ marginLeft: 'auto' }} onClick={() => navigate('/qb/quotes/new')}>
+            + New Quote
+          </button>
+        )}
       </div>
 
       <div className="table-wrap">
