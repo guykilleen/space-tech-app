@@ -901,7 +901,18 @@ async function createFromQuote(req, res) {
     res.status(201).json(quote);
   } catch (err) {
     await client.query('ROLLBACK');
-    if (err.code === '23505') return res.status(409).json({ error: 'QB header already exists for this quote' });
+    if (err.code === '23505') {
+      // Header exists but quote_id wasn't linked — find by quote_number and return silently
+      const { rows: [h] } = await pool.query(
+        'SELECT id FROM qb_quote_headers WHERE quote_number = $1', [jt.quote_number]
+      );
+      if (h) {
+        // Backfill the missing quote_id link
+        await pool.query('UPDATE qb_quote_headers SET quote_id = $1 WHERE id = $2', [quoteId, h.id]);
+        const quote = await fetchFull(h.id);
+        return res.json(quote);
+      }
+    }
     console.error(err);
     res.status(500).json({ error: 'Server error' });
   } finally {

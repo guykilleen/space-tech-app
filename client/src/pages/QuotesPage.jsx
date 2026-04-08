@@ -139,7 +139,7 @@ export default function QuotesPage() {
                       {isAdminOrMgr && (
                         <div style={{ display:'flex', gap:4, alignItems:'center' }}>
                           <button className="act-btn edit" onClick={() => editId === q.id ? closeEdit() : openEdit(q)}>
-                            {editId === q.id ? 'Close' : 'Edit'}
+                            {editId === q.id ? 'Close' : 'Edit Details'}
                           </button>
                           <button
                             className="act-btn"
@@ -147,7 +147,7 @@ export default function QuotesPage() {
                             disabled={buildingId === q.id}
                             onClick={() => openInBuilder(q.id)}
                           >
-                            {buildingId === q.id ? '…' : 'Build Quote'}
+                            {buildingId === q.id ? '…' : 'Open Quote'}
                           </button>
                         </div>
                       )}
