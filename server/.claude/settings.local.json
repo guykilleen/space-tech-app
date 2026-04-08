@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node db/qb_migrate_contact_address.js)"
+    ]
+  }
+}

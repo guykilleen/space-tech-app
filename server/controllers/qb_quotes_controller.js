@@ -10,6 +10,7 @@ async function fetchFull(id) {
             c.name    AS contact_name,
             c.email   AS contact_email,
             c.company AS contact_company,
+            c.address AS contact_address,
             q.client_name AS jt_client_name
      FROM qb_quote_headers h
      LEFT JOIN qb_contacts c ON h.client_id = c.id
@@ -573,13 +574,12 @@ async function getPdf(req, res) {
       const roomLevel = [u.room_number, u.level].filter(Boolean).join(' / ');
       return `
       <tr>
-        <td class="muted">${esc(u.unit_number)}</td>
+        <td class="muted"><strong>${esc(u.unit_number)}</strong></td>
         <td class="muted">${esc(roomLevel)}</td>
         <td>
           ${u.description ? `<div class="item-desc">${esc(u.description)}</div>` : ''}
-          ${u.drawing_number ? `<div class="item-sub">Dwg: ${esc(u.drawing_number)}</div>` : ''}
         </td>
-        <td class="muted">&nbsp;</td>
+        <td class="muted">${esc(u.drawing_number || '')}</td>
         <td class="right">${Number(u.quantity) % 1 === 0 ? Number(u.quantity) : Number(u.quantity).toFixed(2)}</td>
         <td class="right">${fmt(u.unit_cost)}</td>
         <td class="right"><strong>${fmt(u.total)}</strong></td>
@@ -590,6 +590,7 @@ async function getPdf(req, res) {
     const clientLines = [
       quote.contact_name    ? `<strong>${esc(quote.contact_name)}</strong>` : null,
       quote.contact_company ? esc(quote.contact_company)                    : null,
+      quote.contact_address ? esc(quote.contact_address)                    : null,
       quote.contact_email   ? esc(quote.contact_email)                      : null,
       quote.contact_phone   ? esc(quote.contact_phone)                      : null,
     ].filter(Boolean);
@@ -604,9 +605,6 @@ async function getPdf(req, res) {
     const projectRow = quote.project
       ? `<tr><td>Project</td><td>${esc(quote.project)}</td></tr>`
       : '';
-
-    const statusLabels = { draft: 'Draft', pending: 'Pending', sent: 'Sent', accepted: 'Accepted', declined: 'Declined' };
-    const statusBadge = statusLabels[quote.status] || esc(quote.status);
 
     const notesBlock = quote.notes
       ? `<div class="notes-section"><strong>Notes</strong>${esc(quote.notes)}</div>`
@@ -629,7 +627,6 @@ async function getPdf(req, res) {
       .replace(/\{\{CLIENT_BLOCK\}\}/g,   clientBlock)
       .replace(/\{\{PREPARED_BY_ROW\}\}/g, preparedByRow)
       .replace(/\{\{PROJECT_ROW\}\}/g,    projectRow)
-      .replace(/\{\{STATUS_BADGE\}\}/g,   statusBadge)
       .replace(/\{\{UNIT_ROWS\}\}/g,      unitRowsHtml)
       .replace(/\{\{SUBTOTAL\}\}/g,       fmt(subtotal))
       .replace(/\{\{GST\}\}/g,            fmt(gst))

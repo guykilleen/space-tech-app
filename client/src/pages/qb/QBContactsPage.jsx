@@ -3,7 +3,7 @@ import { toast } from 'react-toastify';
 import api from '../../utils/api';
 import styles from '../Page.module.css';
 
-const EMPTY = { name: '', email: '', company: '', phone: '' };
+const EMPTY = { name: '', email: '', company: '', phone: '', address: '' };
 
 export default function QBContactsPage() {
   const [contacts, setContacts] = useState([]);
@@ -87,6 +87,10 @@ export default function QBContactsPage() {
               <label>Phone</label>
               <input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="0400 000 000" />
             </div>
+            <div className="field span-4">
+              <label>Address</label>
+              <input value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} placeholder="Street address, suburb, state, postcode" />
+            </div>
           </div>
           <div className="btn-row">
             <button type="button" className="btn btn-outline" onClick={() => setShowForm(false)}>Cancel</button>
@@ -108,7 +112,7 @@ export default function QBContactsPage() {
         </div>
         <table className="std-table">
           <thead>
-            <tr><th>Name</th><th>Company</th><th>Email</th><th>Phone</th><th>Actions</th></tr>
+            <tr><th>Name</th><th>Company</th><th>Address</th><th>Email</th><th>Phone</th><th>Actions</th></tr>
           </thead>
           <tbody>
             {filtered.map(c => (
@@ -116,18 +120,19 @@ export default function QBContactsPage() {
                 <tr>
                   <td><strong>{c.name}</strong></td>
                   <td>{c.company || '—'}</td>
+                  <td>{c.address || '—'}</td>
                   <td>{c.email || '—'}</td>
                   <td>{c.phone || '—'}</td>
                   <td>
                     <div style={{ display: 'flex', gap: 4 }}>
-                      <button className="act-btn edit" onClick={() => { setEditId(c.id); setEditData({ name: c.name, email: c.email || '', company: c.company || '', phone: c.phone || '' }); }}>Edit</button>
+                      <button className="act-btn edit" onClick={() => { setEditId(c.id); setEditData({ name: c.name, email: c.email || '', company: c.company || '', phone: c.phone || '', address: c.address || '' }); }}>Edit</button>
                       <button className="act-btn del" onClick={() => handleDelete(c.id)}>Del</button>
                     </div>
                   </td>
                 </tr>
                 {editId === c.id && (
                   <tr className="edit-row">
-                    <td colSpan={5}>
+                    <td colSpan={6}>
                       <div className="edit-row-inner">
                         <div className="edit-field" style={{ flex: 2, minWidth: 160 }}>
                           <label>Name</label>
@@ -136,6 +141,10 @@ export default function QBContactsPage() {
                         <div className="edit-field" style={{ flex: 2, minWidth: 160 }}>
                           <label>Company</label>
                           <input value={editData.company} onChange={e => setEditData(d => ({ ...d, company: e.target.value }))} />
+                        </div>
+                        <div className="edit-field" style={{ flex: 3, minWidth: 220 }}>
+                          <label>Address</label>
+                          <input value={editData.address} onChange={e => setEditData(d => ({ ...d, address: e.target.value }))} placeholder="Street, suburb, state, postcode" />
                         </div>
                         <div className="edit-field" style={{ flex: 2, minWidth: 180 }}>
                           <label>Email</label>
@@ -156,7 +165,7 @@ export default function QBContactsPage() {
               </React.Fragment>
             ))}
             {!filtered.length && (
-              <tr><td colSpan={5}><div className="empty-state"><div className="empty-icon">👤</div><div className="empty-text">No contacts found</div></div></td></tr>
+              <tr><td colSpan={6}><div className="empty-state"><div className="empty-icon">👤</div><div className="empty-text">No contacts found</div></div></td></tr>
             )}
           </tbody>
         </table>

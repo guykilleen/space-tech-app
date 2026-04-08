@@ -26,12 +26,12 @@ async function getOne(req, res) {
 }
 
 async function create(req, res) {
-  const { name, email, company, phone } = req.body;
+  const { name, email, company, phone, address } = req.body;
   if (!name?.trim()) return res.status(400).json({ error: 'Name is required' });
   try {
     const { rows } = await pool.query(
-      `INSERT INTO qb_contacts (name, email, company, phone) VALUES ($1,$2,$3,$4) RETURNING *`,
-      [name.trim(), email?.trim() || null, company?.trim() || null, phone?.trim() || null]
+      `INSERT INTO qb_contacts (name, email, company, phone, address) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [name.trim(), email?.trim() || null, company?.trim() || null, phone?.trim() || null, address?.trim() || null]
     );
     res.status(201).json(rows[0]);
   } catch (err) {
@@ -41,12 +41,12 @@ async function create(req, res) {
 }
 
 async function update(req, res) {
-  const { name, email, company, phone } = req.body;
+  const { name, email, company, phone, address } = req.body;
   if (!name?.trim()) return res.status(400).json({ error: 'Name is required' });
   try {
     const { rows } = await pool.query(
-      `UPDATE qb_contacts SET name=$1, email=$2, company=$3, phone=$4 WHERE id=$5 RETURNING *`,
-      [name.trim(), email?.trim() || null, company?.trim() || null, phone?.trim() || null, req.params.id]
+      `UPDATE qb_contacts SET name=$1, email=$2, company=$3, phone=$4, address=$5 WHERE id=$6 RETURNING *`,
+      [name.trim(), email?.trim() || null, company?.trim() || null, phone?.trim() || null, address?.trim() || null, req.params.id]
     );
     if (!rows.length) return res.status(404).json({ error: 'Not found' });
     res.json(rows[0]);
