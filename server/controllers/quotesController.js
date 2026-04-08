@@ -1,20 +1,21 @@
 const pool = require('../config/db');
 
-// Generate next quote number: V-nnnn for standard, VQ-nnnn for variations
-async function nextQuoteNumber(client, prefix = 'V-') {
-  const { rows } = await client.query(
-    `SELECT quote_number FROM quotes WHERE quote_number LIKE $1 ORDER BY quote_number DESC LIMIT 1`,
-    [`${prefix}%`]
+// Generate next quote number across all formats (Q-XXX, V-NNNN, VQ-NNNN)
+async function nextQuoteNumber(client, prefix = 'Q-') {
+  // Filter to strict Q-XXXX format only (excludes VQ-, Q-405.1 style entries, etc.)
+  const { rows: [r] } = await client.query(
+    `SELECT COALESCE(MAX(CAST(SUBSTRING(quote_number FROM 3) AS INTEGER)), 0) AS max
+     FROM quotes
+     WHERE quote_number ~ '^Q-[0-9]+$'`
   );
-  const last = rows[0]?.quote_number;
-  const seq  = last ? parseInt(last.slice(prefix.length), 10) + 1 : 1;
-  return `${prefix}${String(seq).padStart(4, '0')}`;
+  const next = Number(r.max) + 1;
+  return `${prefix}${String(next).padStart(4, '0')}`;
 }
 
 async function getNextNumber(req, res) {
   const client = await pool.connect();
   try {
-    const next = await nextQuoteNumber(client, 'V-');
+    const next = await nextQuoteNumber(client);
     res.json({ next_number: next });
   } catch (err) {
     console.error(err);
@@ -74,7 +75,7 @@ async function create(req, res) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const qNum = quote_number?.trim() || await nextQuoteNumber(client, 'V-');
+    const qNum = quote_number?.trim() || await nextQuoteNumber(client);
     const { rows } = await client.query(
       `INSERT INTO quotes
          (quote_number, initials, date, client_name, project, value, status, accept_details, accept_date, created_by)

@@ -42,19 +42,27 @@ async function fetchFull(id) {
 
 // ── Quote CRUD ────────────────────────────────────────────────────────────
 
+async function nextQuoteNumber(client) {
+  // Filter to strict Q-XXXX format only (excludes VQ-, Q-405.1 style entries, etc.)
+  const { rows: [r] } = await client.query(
+    `SELECT COALESCE(MAX(CAST(SUBSTRING(quote_number FROM 3) AS INTEGER)), 0) AS max
+     FROM quotes
+     WHERE quote_number ~ '^Q-[0-9]+$'`
+  );
+  const next = Number(r.max) + 1;
+  return `Q-${String(next).padStart(4, '0')}`;
+}
+
 async function getNextNumber(req, res) {
+  const client = await pool.connect();
   try {
-    const { rows: [r1] } = await pool.query(
-      `SELECT COALESCE(MAX(CAST(REGEXP_REPLACE(quote_number, '[^0-9]', '', 'g') AS INTEGER)), 0) AS max FROM quotes`
-    );
-    const { rows: [r2] } = await pool.query(
-      `SELECT COALESCE(MAX(CAST(REGEXP_REPLACE(quote_number, '[^0-9]', '', 'g') AS INTEGER)), 0) AS max FROM qb_quote_headers`
-    );
-    const next = Math.max(Number(r1.max), Number(r2.max)) + 1;
-    res.json({ next_number: `V-${String(next).padStart(4, '0')}` });
+    const next = await nextQuoteNumber(client);
+    res.json({ next_number: next });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
+  } finally {
+    client.release();
   }
 }
 
@@ -285,10 +293,11 @@ async function _upsertFull(quoteId, body, client) {
 }
 
 async function create(req, res) {
-  if (!req.body.quote_number?.trim()) return res.status(400).json({ error: 'Quote number required' });
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+
+    const qNum = req.body.quote_number?.trim() || await nextQuoteNumber(client);
 
     // Resolve client name for the tracker entry
     let clientName = null;
@@ -301,11 +310,11 @@ async function create(req, res) {
     const { rows: [jtRow] } = await client.query(
       `INSERT INTO quotes (quote_number, date, client_name, project, initials, value, status)
        VALUES ($1, $2, $3, $4, $5, 0, 'pending') RETURNING id`,
-      [req.body.quote_number, req.body.date || new Date(),
+      [qNum, req.body.date || new Date(),
        clientName, req.body.project || null, req.body.prepared_by || null]
     );
 
-    const quoteId = await _upsertFull(null, { ...req.body, quote_id: jtRow.id }, client);
+    const quoteId = await _upsertFull(null, { ...req.body, quote_number: qNum, quote_id: jtRow.id }, client);
     await client.query('COMMIT');
     const quote = await fetchFull(quoteId);
     res.status(201).json(quote);
