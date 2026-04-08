@@ -59,6 +59,10 @@ function mapUnit(u) {
   return {
     ...u,
     _key: u.id,
+    drawing_number:     u.drawing_number     ?? '',
+    room_number:        u.room_number        ?? '',
+    level:              u.level              ?? '',
+    description:        u.description        ?? '',
     admin_hours:        u.admin_hours        ?? 0,
     cnc_hours:          u.cnc_hours          ?? 0,
     edgebander_hours:   u.edgebander_hours   ?? 0,
@@ -77,7 +81,13 @@ function mapUnit(u) {
     assembly_rate_overridden:     u.assembly_rate_overridden     ?? false,
     delivery_rate_overridden:     u.delivery_rate_overridden     ?? false,
     installation_rate_overridden: u.installation_rate_overridden ?? false,
-    lines: (u.lines || []).map(l => ({ ...l, _key: l.id, price_overridden: l.price_overridden ?? false })),
+    lines: (u.lines || []).map(l => ({
+      ...l,
+      _key:            l.id,
+      product:         l.product         ?? '',
+      unit_of_measure: l.unit_of_measure ?? '',
+      price_overridden: l.price_overridden ?? false,
+    })),
   };
 }
 

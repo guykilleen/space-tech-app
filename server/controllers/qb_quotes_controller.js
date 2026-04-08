@@ -44,11 +44,11 @@ async function fetchFull(id) {
 // ── Quote CRUD ────────────────────────────────────────────────────────────
 
 async function nextQuoteNumber(client) {
-  // Filter to strict Q-XXXX format only (excludes VQ-, Q-405.1 style entries, etc.)
+  // Strip Q- or VQ- prefix and find the highest number across both series
   const { rows: [r] } = await client.query(
-    `SELECT COALESCE(MAX(CAST(SUBSTRING(quote_number FROM 3) AS INTEGER)), 0) AS max
+    `SELECT COALESCE(MAX(CAST(REGEXP_REPLACE(quote_number, '^(VQ|Q)-', '') AS INTEGER)), 0) AS max
      FROM quotes
-     WHERE quote_number ~ '^Q-[0-9]+$'`
+     WHERE quote_number ~ '^(VQ|Q)-[0-9]+$'`
   );
   const next = Number(r.max) + 1;
   return `Q-${String(next).padStart(4, '0')}`;
@@ -287,7 +287,16 @@ async function _upsertFull(quoteId, body, client) {
       ) w ON w.unit_id = u.id
       WHERE u.quote_id = $1
     `, [quoteId, hdr.waste_pct, hdr.margin]);
-    await client.query('UPDATE quotes SET value = $1 WHERE id = $2', [Number(tot.subtotal), hdr.quote_id]);
+    // Sync value, client_name, and status back to the linked JT quote
+    const { rows: [qbHdr] } = await client.query(
+      `SELECT h.status, c.name FROM qb_quote_headers h LEFT JOIN qb_contacts c ON h.client_id = c.id WHERE h.id = $1`,
+      [quoteId]
+    );
+    const jtStatus = { draft: 'pending', sent: 'review', accepted: 'accepted', declined: 'declined' }[qbHdr?.status] || 'pending';
+    await client.query(
+      'UPDATE quotes SET value = $1, client_name = COALESCE($2, client_name), status = $3 WHERE id = $4',
+      [Number(tot.subtotal), qbHdr?.name || null, jtStatus, hdr.quote_id]
+    );
   }
 
   return quoteId;
@@ -312,7 +321,7 @@ async function create(req, res) {
       `INSERT INTO quotes (quote_number, date, client_name, project, initials, value, status)
        VALUES ($1, $2, $3, $4, $5, 0, 'pending') RETURNING id`,
       [qNum, req.body.date || new Date(),
-       clientName, req.body.project || null, req.body.prepared_by || null]
+       clientName || '(No client)', req.body.project || null, (req.body.prepared_by || '').slice(0, 10) || null]
     );
 
     const quoteId = await _upsertFull(null, { ...req.body, quote_number: qNum, quote_id: jtRow.id }, client);
@@ -350,12 +359,17 @@ async function update(req, res) {
 
 async function updateStatus(req, res) {
   const { status } = req.body;
+  const jtStatus = { draft: 'pending', sent: 'review', accepted: 'accepted', declined: 'declined' }[status] || 'pending';
   try {
     const { rows } = await pool.query(
       `UPDATE qb_quote_headers SET status = $1 WHERE id = $2 RETURNING *`,
       [status, req.params.id]
     );
     if (!rows.length) return res.status(404).json({ error: 'Not found' });
+    // Sync status to linked JT quote
+    if (rows[0].quote_id) {
+      await pool.query('UPDATE quotes SET status = $1 WHERE id = $2', [jtStatus, rows[0].quote_id]);
+    }
     res.json(rows[0]);
   } catch (err) {
     console.error(err);
