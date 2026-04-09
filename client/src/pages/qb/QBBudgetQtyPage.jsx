@@ -57,6 +57,8 @@ export default function QBBudgetQtyPage() {
     { label: 'Installation', hoursField: 'installation_hours', costField: 'installation_cost' },
   ];
 
+  const tableClass = `std-table ${styles.budgetTable}`;
+
   return (
     <div className={styles.builderPage}>
       <div className={styles.builderHeader}>
@@ -76,16 +78,14 @@ export default function QBBudgetQtyPage() {
               Raw cost — margin applied in summary below
             </span>
           </div>
-          <table className="std-table">
+          <table className={tableClass}>
             <thead>
               <tr>
-                <th>Product</th>
+                <th style={{ textAlign: 'left' }}>Product</th>
                 <th style={{ textAlign: 'right' }}>Total Qty</th>
-                <th>UOM</th>
+                <th style={{ textAlign: 'left' }}>UOM</th>
                 <th style={{ textAlign: 'right' }}>Unit Price</th>
                 <th style={{ textAlign: 'right' }}>Cost Allowed</th>
-                <th style={{ textAlign: 'right' }}>Actual Order</th>
-                <th style={{ textAlign: 'right' }}>Variance</th>
               </tr>
             </thead>
             <tbody>
@@ -96,8 +96,6 @@ export default function QBBudgetQtyPage() {
                   <td>{r.unit_of_measure || '—'}</td>
                   <td className="currency">{fmtMoney(r.price)}</td>
                   <td className="currency"><strong>{fmtMoney(r.total_cost_allowed)}</strong></td>
-                  <td style={{ textAlign: 'right', color: 'var(--muted)' }}>—</td>
-                  <td style={{ textAlign: 'right', color: 'var(--muted)' }}>—</td>
                 </tr>
               ))}
               <tr style={{ background: 'var(--sawdust)', fontWeight: 600 }}>
@@ -105,7 +103,6 @@ export default function QBBudgetQtyPage() {
                   Materials subtotal
                 </td>
                 <td className="currency">{fmtMoney(totals.materials)}</td>
-                <td colSpan={2} />
               </tr>
             </tbody>
           </table>
@@ -118,16 +115,14 @@ export default function QBBudgetQtyPage() {
           <div className="table-toolbar">
             <span className="ttitle">Hardware</span>
           </div>
-          <table className="std-table">
+          <table className={tableClass}>
             <thead>
               <tr>
-                <th>Product</th>
+                <th style={{ textAlign: 'left' }}>Product</th>
                 <th style={{ textAlign: 'right' }}>Total Qty</th>
-                <th>UOM</th>
+                <th style={{ textAlign: 'left' }}>UOM</th>
                 <th style={{ textAlign: 'right' }}>Unit Price</th>
                 <th style={{ textAlign: 'right' }}>Cost Allowed</th>
-                <th style={{ textAlign: 'right' }}>Actual Order</th>
-                <th style={{ textAlign: 'right' }}>Variance</th>
               </tr>
             </thead>
             <tbody>
@@ -138,8 +133,6 @@ export default function QBBudgetQtyPage() {
                   <td>{r.unit_of_measure || '—'}</td>
                   <td className="currency">{fmtMoney(r.price)}</td>
                   <td className="currency"><strong>{fmtMoney(r.total_cost_allowed)}</strong></td>
-                  <td style={{ textAlign: 'right', color: 'var(--muted)' }}>—</td>
-                  <td style={{ textAlign: 'right', color: 'var(--muted)' }}>—</td>
                 </tr>
               ))}
               <tr style={{ background: 'var(--sawdust)', fontWeight: 600 }}>
@@ -147,7 +140,6 @@ export default function QBBudgetQtyPage() {
                   Hardware subtotal
                 </td>
                 <td className="currency">{fmtMoney(totals.hardware)}</td>
-                <td colSpan={2} />
               </tr>
             </tbody>
           </table>
@@ -159,14 +151,12 @@ export default function QBBudgetQtyPage() {
         <div className="table-toolbar">
           <span className="ttitle">Labour</span>
         </div>
-        <table className="std-table">
+        <table className={tableClass}>
           <thead>
             <tr>
-              <th>Type</th>
+              <th style={{ textAlign: 'left' }}>Type</th>
               <th style={{ textAlign: 'right' }}>Total Hours</th>
               <th style={{ textAlign: 'right' }}>Cost Allowed</th>
-              <th style={{ textAlign: 'right' }}>Actual Cost</th>
-              <th style={{ textAlign: 'right' }}>Variance</th>
             </tr>
           </thead>
           <tbody>
@@ -175,16 +165,13 @@ export default function QBBudgetQtyPage() {
                 <td>{label}</td>
                 <td style={{ textAlign: 'right', fontWeight: 500 }}>{fmtQty(labour[hoursField])}</td>
                 <td className="currency"><strong>{fmtMoney(labour[costField])}</strong></td>
-                <td style={{ textAlign: 'right', color: 'var(--muted)' }}>—</td>
-                <td style={{ textAlign: 'right', color: 'var(--muted)' }}>—</td>
               </tr>
             ))}
             <tr style={{ background: 'var(--sawdust)', fontWeight: 600 }}>
-              <td colSpan={3} style={{ textAlign: 'right', fontSize: '.7rem', letterSpacing: '.1em', color: 'var(--muted)', textTransform: 'uppercase' }}>
+              <td colSpan={2} style={{ textAlign: 'right', fontSize: '.7rem', letterSpacing: '.1em', color: 'var(--muted)', textTransform: 'uppercase' }}>
                 Labour subtotal
               </td>
               <td className="currency">{fmtMoney(totals.labour)}</td>
-              <td colSpan={2} />
             </tr>
           </tbody>
         </table>
@@ -196,10 +183,10 @@ export default function QBBudgetQtyPage() {
           <div className="table-toolbar">
             <span className="ttitle">Subtrades</span>
           </div>
-          <table className="std-table">
+          <table className={tableClass}>
             <thead>
               <tr>
-                <th>Item</th>
+                <th style={{ textAlign: 'left' }}>Item</th>
                 <th style={{ textAlign: 'right' }}>Cost (before margin)</th>
                 <th style={{ textAlign: 'right' }}>Sell (after margin)</th>
               </tr>

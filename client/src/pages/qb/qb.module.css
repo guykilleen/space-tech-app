@@ -528,6 +528,17 @@
   color: var(--oak);
 }
 
+/* ── Budget Quantities — light table header override ─────────── */
+/* Overrides the dark std-table thead for report-style tables     */
+.budgetTable thead {
+  background: #fff !important;
+}
+.budgetTable th {
+  color: var(--muted) !important;
+  font-variant: small-caps;
+  border-bottom: 1px solid var(--oak-light) !important;
+}
+
 /* ── Unsaved changes indicator ───────────────────────────────── */
 .unsavedBadge {
   font-size: .72rem;
