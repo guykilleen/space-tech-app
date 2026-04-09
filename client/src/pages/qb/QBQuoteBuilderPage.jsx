@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useQBDirty } from '../../context/QBDirtyContext';
 import { toast } from 'react-toastify';
 import api from '../../utils/api';
 import styles from './qb.module.css';
@@ -26,7 +27,7 @@ const EMPTY_UNIT = (n) => ({
   delivery_rate_overridden: false, installation_rate_overridden: false,
   subtrade_margin: 0,
   subtrades: SUBTRADE_ITEMS.map(s => EMPTY_SUBTRADE(s.type)),
-  lines: [EMPTY_LINE()],
+  lines: [], // populated with defaults once priceList loads
 });
 
 const LABOUR_FIELDS = [
@@ -47,6 +48,53 @@ const SUBTRADE_ITEMS = [
   { type: 'steel',         label: 'Steel' },
 ];
 const EMPTY_SUBTRADE = (type) => ({ type, mode: 'fixed', cost: '', quantity: '', rate: '' });
+
+// ── Default pre-populated lines ─────────────────────────────────────────────
+const DEFAULT_MAT_NAMES = [
+  '16mm HMR White', '16mm HMR Black', '25mm HMR White',
+  'Polytec 162412 Matt', 'Polytec 162412 WM',
+  '18mm STD MDF', '16mm STD MDF',
+  '22x1 ABS', '22x1 ABS Colour',
+];
+const DEFAULT_HW_NAMES = [
+  'Handle', 'Tip On Push to Open', 'Std Finista', 'Gallery Finista', 'Pot Finista',
+  '110 Degree Hinges', '170 & Cnr Hinges', 'Sauth Vagel Bin w Inner', 'Cutlery Tray',
+  'KD & Rafix', 'Freight Charge', 'Sundry Expenses',
+];
+
+function buildDefaultLines(priceList) {
+  const lines = [];
+  for (const name of DEFAULT_MAT_NAMES) {
+    const item = priceList.find(p => p.product === name && p.category === 'Materials');
+    if (item) lines.push({
+      _key: tempId(), id: null,
+      price_list_id: item.id, category: item.category,
+      product: item.product, price: Number(item.price),
+      unit_of_measure: item.unit || '', quantity: 0, price_overridden: false,
+    });
+  }
+  for (const name of DEFAULT_HW_NAMES) {
+    const item = priceList.find(p => p.product === name && p.category === 'Hardware');
+    if (item) lines.push({
+      _key: tempId(), id: null,
+      price_list_id: item.id, category: item.category,
+      product: item.product, price: Number(item.price),
+      unit_of_measure: item.unit || '', quantity: 0, price_overridden: false,
+    });
+  }
+  return lines;
+}
+
+// Merges missing default lines (at qty=0) into an existing set of saved lines.
+function mergeWithDefaults(lines, priceList) {
+  const defaults = buildDefaultLines(priceList);
+  const result = [...lines];
+  for (const def of defaults) {
+    const alreadyPresent = lines.some(l => l.price_list_id === def.price_list_id);
+    if (!alreadyPresent) result.push(def);
+  }
+  return result;
+}
 
 function fmtMoney(v) {
   return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(v || 0);
@@ -147,6 +195,7 @@ export default function QBQuoteBuilderPage() {
   const [units,          setUnits]          = useState([EMPTY_UNIT(1)]);
   const deletedUnitIds = useRef([]);
   const deletedLineIds = useRef([]);
+  const { isDirty, setIsDirty } = useQBDirty();
 
   // Rates are locked on accepted quotes only
   const isLocked = header.status === 'accepted';
@@ -195,24 +244,62 @@ export default function QBQuoteBuilderPage() {
           status:       q.status,
           notes:        q.notes || '',
         });
-        setUnits(q.units.map(mapUnit));
+        setUnits(q.units.map(u => { const m = mapUnit(u); return { ...m, lines: mergeWithDefaults(m.lines, priceList) }; }));
         deletedUnitIds.current = [];
         deletedLineIds.current = [];
+        setIsDirty(false);
       })
       .catch(() => toast.error('Failed to load quote'))
       .finally(() => setLoading(false));
   }, [id]);
 
+  // ── Merge defaults when priceList loads ────────────────────────────────
+  // Handles both new quotes (lines: []) and existing quotes where priceList
+  // arrives after the quote data. If priceList arrives first, the mapUnit
+  // call sites below merge inline; this effect handles the reverse order.
+  useEffect(() => {
+    if (!priceList.length) return;
+    setUnits(prev => prev.map(u => ({
+      ...u,
+      lines: mergeWithDefaults(u.lines, priceList),
+    })));
+  }, [priceList]); // eslint-disable-line
+
+  // ── Unsaved-changes guard ───────────────────────────────────────────────
+  // Browser tab close / refresh
+  useEffect(() => {
+    const handler = (e) => {
+      if (!isDirty) return;
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isDirty]);
+
+  // Clear dirty when builder unmounts (user confirmed leave via sidebar/switcher)
+  useEffect(() => () => setIsDirty(false), []); // eslint-disable-line
+
+  const CONFIRM_MSG = 'You have unsaved changes. Are you sure you want to leave? Your changes will be lost.';
+  function safeNavigate(to, opts) {
+    if (isDirty && !window.confirm(CONFIRM_MSG)) return;
+    navigate(to, opts);
+  }
+
   // ── Header helpers ──────────────────────────────────────────────────────
-  const setH = (field, val) => setHeader(h => ({ ...h, [field]: val }));
+  const setH = (field, val) => { setIsDirty(true); setHeader(h => ({ ...h, [field]: val })); };
 
   // ── Unit helpers ────────────────────────────────────────────────────────
   function addUnit() {
+    setIsDirty(true);
     const nextNum = units.length ? Math.max(...units.map(u => u.unit_number)) + 1 : 1;
-    setUnits(u => [...u, EMPTY_UNIT(nextNum)]);
+    const unit = EMPTY_UNIT(nextNum);
+    unit.lines = buildDefaultLines(priceList);
+    setUnits(u => [...u, unit]);
   }
 
   function removeUnit(key) {
+    setIsDirty(true);
     setUnits(u => {
       const target = u.find(x => x._key === key);
       if (target?.id) deletedUnitIds.current.push(target.id);
@@ -221,11 +308,13 @@ export default function QBQuoteBuilderPage() {
   }
 
   function setUnit(key, field, val) {
+    setIsDirty(true);
     setUnits(u => u.map(x => x._key === key ? { ...x, [field]: val } : x));
   }
 
   // Sets a labour rate and marks it as manually overridden
   function handleLabourRateChange(unitKey, rateField, type, val) {
+    setIsDirty(true);
     setUnits(u => u.map(x => x._key !== unitKey ? x : {
       ...x,
       [rateField]: val,
@@ -235,12 +324,14 @@ export default function QBQuoteBuilderPage() {
 
   // ── Line helpers ────────────────────────────────────────────────────────
   function addLine(unitKey) {
+    setIsDirty(true);
     setUnits(u => u.map(x => x._key === unitKey
       ? { ...x, lines: [...x.lines, EMPTY_LINE()] }
       : x));
   }
 
   function removeLine(unitKey, lineKey) {
+    setIsDirty(true);
     setUnits(u => u.map(x => {
       if (x._key !== unitKey) return x;
       const target = x.lines.find(l => l._key === lineKey);
@@ -250,6 +341,7 @@ export default function QBQuoteBuilderPage() {
   }
 
   function setLine(unitKey, lineKey, field, val) {
+    setIsDirty(true);
     setUnits(u => u.map(x => {
       if (x._key !== unitKey) return x;
       return {
@@ -260,6 +352,7 @@ export default function QBQuoteBuilderPage() {
   }
 
   function setSubtrade(unitKey, type, field, val) {
+    setIsDirty(true);
     setUnits(u => u.map(x => {
       if (x._key !== unitKey) return x;
       return {
@@ -271,6 +364,7 @@ export default function QBQuoteBuilderPage() {
 
   // Sets price and marks as overridden when the line is linked to the price list
   function setLinePrice(unitKey, lineKey, val) {
+    setIsDirty(true);
     setUnits(u => u.map(x => {
       if (x._key !== unitKey) return x;
       return {
@@ -285,6 +379,7 @@ export default function QBQuoteBuilderPage() {
   }
 
   function pickProduct(unitKey, lineKey, plId) {
+    setIsDirty(true);
     const item = priceList.find(p => p.id === plId);
     if (!item) return;
     setUnits(u => u.map(x => {
@@ -408,17 +503,28 @@ export default function QBQuoteBuilderPage() {
             quantity: Number(st.quantity) || 0,
             rate:     Number(st.rate)     || 0,
           })),
-          lines: u.lines.map((l, j) => ({
-            id:              l.id || undefined,
-            price_list_id:   l.price_list_id || null,
-            category:        l.category,
-            product:         l.product,
-            price:           Number(l.price),
-            unit_of_measure: l.unit_of_measure,
-            quantity:        Number(l.quantity),
-            sort_order:      j,
-            price_overridden: l.price_overridden ?? false,
-          })).filter(l => l.product.trim()),
+          lines: (() => {
+            // Collect ids of saved lines being excluded (qty=0 or empty product)
+            u.lines.forEach(l => {
+              if (l.id && (Number(l.quantity) === 0 || !l.product.trim()) &&
+                  !deletedLineIds.current.includes(l.id)) {
+                deletedLineIds.current.push(l.id);
+              }
+            });
+            return u.lines
+              .filter(l => l.product.trim() && Number(l.quantity) > 0)
+              .map((l, j) => ({
+                id:              l.id || undefined,
+                price_list_id:   l.price_list_id || null,
+                category:        l.category,
+                product:         l.product,
+                price:           Number(l.price),
+                unit_of_measure: l.unit_of_measure,
+                quantity:        Number(l.quantity),
+                sort_order:      j,
+                price_overridden: l.price_overridden ?? false,
+              }));
+          })(),
         })),
         deleted_unit_ids: deletedUnitIds.current,
         deleted_line_ids: deletedLineIds.current,
@@ -428,12 +534,14 @@ export default function QBQuoteBuilderPage() {
       if (isNew) {
         res = await api.post('/qb/quotes', body);
         toast.success('Quote created');
+        setIsDirty(false);
         navigate(`/qb/quotes/${res.data.id}`, { replace: true });
       } else {
         res = await api.put(`/qb/quotes/${id}`, body);
         toast.success('Quote saved');
+        setIsDirty(false);
         const q = res.data;
-        setUnits(q.units.map(mapUnit));
+        setUnits(q.units.map(u => { const m = mapUnit(u); return { ...m, lines: mergeWithDefaults(m.lines, priceList) }; }));
         deletedUnitIds.current = [];
         deletedLineIds.current = [];
       }
@@ -464,15 +572,16 @@ export default function QBQuoteBuilderPage() {
         </div>
         <div className={styles.builderActions}>
           {linkedQuoteId && (
-            <button className="btn btn-outline" onClick={() => navigate('/quotes')}>← Back to Quotes</button>
+            <button className="btn btn-outline" onClick={() => safeNavigate('/quotes')}>← Back to Quotes</button>
           )}
           {!isNew && (
             <>
-              <button className="btn btn-outline" onClick={() => navigate(`/qb/quotes/${id}/summary`)}>Summary →</button>
-              <button className="btn btn-outline" onClick={() => navigate(`/qb/quotes/${id}/budget`)}>Budget Qty →</button>
+              <button className="btn btn-outline" onClick={() => safeNavigate(`/qb/quotes/${id}/summary`)}>Summary →</button>
+              <button className="btn btn-outline" onClick={() => safeNavigate(`/qb/quotes/${id}/budget`)}>Budget Qty →</button>
               <button type="button" className="btn btn-outline" onClick={handleOpenPdf} disabled={pdfLoading}>{pdfLoading ? 'Generating…' : 'PDF →'}</button>
             </>
           )}
+          {isDirty && <span className={styles.unsavedBadge}>● Unsaved changes</span>}
           <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
             {saving ? 'Saving…' : isNew ? 'Create Quote' : 'Save Quote'}
           </button>
@@ -644,7 +753,7 @@ export default function QBQuoteBuilderPage() {
                 </thead>
                 <tbody>
                   {unit.lines.map(line => (
-                    <tr key={line._key}>
+                    <tr key={line._key} className={Number(line.quantity) === 0 ? styles.lineDimmed : ''}>
                       <td>
                         <select
                           className={styles.productSelect}
@@ -739,6 +848,12 @@ export default function QBQuoteBuilderPage() {
                 </tbody>
               </table>
             </div>
+
+            {!isLocked && (
+              <div className={styles.addLineBtnWrap}>
+                <button className={styles.addLineBtn} onClick={() => addLine(unit._key)}>+ Add Line</button>
+              </div>
+            )}
 
             {/* Labour hours */}
             <div className={styles.labourSection}>
@@ -863,9 +978,6 @@ export default function QBQuoteBuilderPage() {
             </div>
 
             <div className={styles.unitFooter}>
-              {!isLocked && (
-                <button className={styles.addLineBtn} onClick={() => addLine(unit._key)}>+ Add Line</button>
-              )}
               <div className={styles.unitTotals}>
                 <span>Materials: <strong>{fmtMoney(matSub)}</strong></span>
                 <span>Waste: <strong>{fmtMoney(wasteSub)}</strong></span>
@@ -902,8 +1014,8 @@ export default function QBQuoteBuilderPage() {
       <div className="btn-row" style={{ marginTop: 32, marginBottom: 48 }}>
         {!isNew && (
           <>
-            <button className="btn btn-outline" onClick={() => navigate(`/qb/quotes/${id}/summary`)}>View Summary →</button>
-            <button className="btn btn-outline" onClick={() => navigate(`/qb/quotes/${id}/budget`)}>Budget Quantities →</button>
+            <button className="btn btn-outline" onClick={() => safeNavigate(`/qb/quotes/${id}/summary`)}>View Summary →</button>
+            <button className="btn btn-outline" onClick={() => safeNavigate(`/qb/quotes/${id}/budget`)}>Budget Quantities →</button>
           </>
         )}
         <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
@@ -974,6 +1086,7 @@ export default function QBQuoteBuilderPage() {
           </div>
         </div>
       )}
+
     </div>
   );
 }

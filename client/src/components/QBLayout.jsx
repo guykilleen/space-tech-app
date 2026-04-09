@@ -1,6 +1,7 @@
 import React from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { QBDirtyProvider, useQBDirty } from '../context/QBDirtyContext';
 import styles from './Layout.module.css';
 
 const QB_NAV = [
@@ -9,11 +10,23 @@ const QB_NAV = [
   { to: '/qb/contacts',   label: '👤 Contacts'    },
 ];
 
-export default function QBLayout() {
+const CONFIRM_MSG = 'You have unsaved changes. Are you sure you want to leave? Your changes will be lost.';
+
+function QBLayoutInner() {
   const { user, logout } = useAuth();
+  const { isDirty, setIsDirty } = useQBDirty();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  function guardedNavigate(to) {
+    if (isDirty && !window.confirm(CONFIRM_MSG)) return;
+    setIsDirty(false);
+    navigate(to);
+  }
 
   function handleLogout() {
+    if (isDirty && !window.confirm(CONFIRM_MSG)) return;
+    setIsDirty(false);
     logout();
     navigate('/login');
   }
@@ -39,7 +52,7 @@ export default function QBLayout() {
       </header>
 
       <div className={styles.appSwitcher}>
-        <button className={styles.switchBtn} onClick={() => navigate('/quotes')}>
+        <button className={styles.switchBtn} onClick={() => guardedNavigate('/quotes')}>
           Job Tracker
         </button>
         <span className={`${styles.switchBtn} ${styles.switchBtnActive}`}>Quote Builder</span>
@@ -47,13 +60,13 @@ export default function QBLayout() {
 
       <nav className={styles.nav}>
         {QB_NAV.map(({ to, label }) => (
-          <NavLink
+          <button
             key={to}
-            to={to}
-            className={({ isActive }) => `${styles.tabBtn}${isActive ? ' ' + styles.active : ''}`}
+            onClick={() => guardedNavigate(to)}
+            className={`${styles.tabBtn}${location.pathname.startsWith(to) ? ' ' + styles.active : ''}`}
           >
             {label}
-          </NavLink>
+          </button>
         ))}
       </nav>
 
@@ -61,5 +74,13 @@ export default function QBLayout() {
         <Outlet />
       </main>
     </div>
+  );
+}
+
+export default function QBLayout() {
+  return (
+    <QBDirtyProvider>
+      <QBLayoutInner />
+    </QBDirtyProvider>
   );
 }

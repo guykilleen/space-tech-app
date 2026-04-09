@@ -144,6 +144,8 @@
 }
 .linesTable tr:last-child td { border-bottom: none; }
 .linesTable tr:hover td { background: #fafafa; }
+.lineDimmed td { opacity: 0.38; }
+.lineDimmed:hover td { background: inherit; }
 
 .productSelect {
   margin-bottom: 4px;
@@ -375,6 +377,9 @@
   flex-wrap: wrap;
   gap: 12px;
 }
+.addLineBtnWrap {
+  padding: 8px 16px 0;
+}
 .addLineBtn {
   background: none;
   border: 1px dashed var(--oak-light);
@@ -522,6 +527,16 @@
   font-size: 1.25rem;
   color: var(--oak);
 }
+
+/* ── Unsaved changes indicator ───────────────────────────────── */
+.unsavedBadge {
+  font-size: .72rem;
+  color: #b45309;
+  font-style: italic;
+  white-space: nowrap;
+  align-self: center;
+}
+
 
 /* ── Rate override / locked indicators ──────────────────────── */
 
@@ -757,6 +772,7 @@
   /* Unit footer */
   .unitFooter { flex-direction: column; align-items: flex-start; gap: 10px; padding: 12px 14px; }
   .unitTotals { flex-direction: column; gap: 6px; }
+  .addLineBtnWrap { padding: 8px 10px 0; }
   .addLineBtn { width: 100%; text-align: center; padding: 12px; min-height: 44px; }
 
   /* Add unit */
