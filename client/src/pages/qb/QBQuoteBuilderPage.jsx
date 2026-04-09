@@ -24,6 +24,8 @@ const EMPTY_UNIT = (n) => ({
   admin_rate_overridden: false, cnc_rate_overridden: false,
   edgebander_rate_overridden: false, assembly_rate_overridden: false,
   delivery_rate_overridden: false, installation_rate_overridden: false,
+  subtrade_margin: 0,
+  subtrades: SUBTRADE_ITEMS.map(s => EMPTY_SUBTRADE(s.type)),
   lines: [EMPTY_LINE()],
 });
 
@@ -35,6 +37,16 @@ const LABOUR_FIELDS = [
   { hoursField: 'delivery_hours',     rateField: 'delivery_rate',     type: 'delivery',     label: 'Delivery' },
   { hoursField: 'installation_hours', rateField: 'installation_rate', type: 'installation', label: 'Installation' },
 ];
+
+const SUBTRADE_ITEMS = [
+  { type: '2pac_flat',     label: '2 Pac Flat' },
+  { type: '2pac_recessed', label: '2 Pac Recessed' },
+  { type: 'stone',         label: 'Stone' },
+  { type: 'upholstery',    label: 'Upholstery' },
+  { type: 'glass',         label: 'Glass' },
+  { type: 'steel',         label: 'Steel' },
+];
+const EMPTY_SUBTRADE = (type) => ({ type, mode: 'fixed', cost: '', quantity: '', rate: '' });
 
 function fmtMoney(v) {
   return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(v || 0);
@@ -50,9 +62,14 @@ function unitCalc(unit, margin, wastePct, labourRates) {
   const wasteSub  = matSub * (Number(wastePct) / 100);
   const labourSub = LABOUR_FIELDS.reduce((s, { hoursField, rateField, type }) =>
     s + Number(unit[hoursField] ?? 0) * R(rateField, type), 0);
-  const unitCost  = (matSub + wasteSub + hwSub + labourSub) * (1 + Number(margin) / 100);
+  const subtradeCost = (unit.subtrades || []).reduce((s, st) =>
+    s + (st.mode === 'qty_rate'
+      ? (Number(st.quantity) || 0) * (Number(st.rate) || 0)
+      : (Number(st.cost) || 0)), 0);
+  const subtradeSell = subtradeCost * (1 + Number(unit.subtrade_margin || 0) / 100);
+  const unitCost  = (matSub + wasteSub + hwSub + labourSub) * (1 + Number(margin) / 100) + subtradeSell;
   const unitTotal = unitCost * Number(unit.quantity);
-  return { matSub, wasteSub, hwSub, labourSub, unitCost, unitTotal };
+  return { matSub, wasteSub, hwSub, labourSub, subtradeCost, subtradeSell, unitCost, unitTotal };
 }
 
 function mapUnit(u) {
@@ -81,6 +98,13 @@ function mapUnit(u) {
     assembly_rate_overridden:     u.assembly_rate_overridden     ?? false,
     delivery_rate_overridden:     u.delivery_rate_overridden     ?? false,
     installation_rate_overridden: u.installation_rate_overridden ?? false,
+    subtrade_margin: Number(u.subtrade_margin ?? 0) * 100,
+    subtrades: SUBTRADE_ITEMS.map(s => {
+      const found = (u.subtrades || []).find(st => st.type === s.type);
+      return found
+        ? { type: s.type, mode: found.mode, cost: found.cost, quantity: found.quantity, rate: found.rate }
+        : EMPTY_SUBTRADE(s.type);
+    }),
     lines: (u.lines || []).map(l => ({
       ...l,
       _key:            l.id,
@@ -235,6 +259,16 @@ export default function QBQuoteBuilderPage() {
     }));
   }
 
+  function setSubtrade(unitKey, type, field, val) {
+    setUnits(u => u.map(x => {
+      if (x._key !== unitKey) return x;
+      return {
+        ...x,
+        subtrades: x.subtrades.map(st => st.type !== type ? st : { ...st, [field]: val }),
+      };
+    }));
+  }
+
   // Sets price and marks as overridden when the line is linked to the price list
   function setLinePrice(unitKey, lineKey, val) {
     setUnits(u => u.map(x => {
@@ -366,6 +400,14 @@ export default function QBQuoteBuilderPage() {
           assembly_rate_overridden:     u.assembly_rate_overridden     ?? false,
           delivery_rate_overridden:     u.delivery_rate_overridden     ?? false,
           installation_rate_overridden: u.installation_rate_overridden ?? false,
+          subtrade_margin: Number(u.subtrade_margin || 0) / 100,
+          subtrades: (u.subtrades || []).map(st => ({
+            type:     st.type,
+            mode:     st.mode || 'fixed',
+            cost:     Number(st.cost)     || 0,
+            quantity: Number(st.quantity) || 0,
+            rate:     Number(st.rate)     || 0,
+          })),
           lines: u.lines.map((l, j) => ({
             id:              l.id || undefined,
             price_list_id:   l.price_list_id || null,
@@ -547,7 +589,7 @@ export default function QBQuoteBuilderPage() {
 
       {/* ── Units ── */}
       {units.map((unit, ui) => {
-        const { matSub, wasteSub, hwSub, labourSub, unitTotal } = unitCalc(unit, margin, wastePct, labourRates);
+        const { matSub, wasteSub, hwSub, labourSub, subtradeCost, subtradeSell, unitTotal } = unitCalc(unit, margin, wastePct, labourRates);
         return (
           <div key={unit._key} className={styles.unitCard}>
             <div className={styles.unitCardHeader}>
@@ -739,6 +781,87 @@ export default function QBQuoteBuilderPage() {
               </div>
             </div>
 
+            {/* Subtrades */}
+            <div className={styles.subtradesSection}>
+              <div className={styles.subtradesTitle}>Subtrades</div>
+              <div className={styles.subtradesList}>
+                {SUBTRADE_ITEMS.map(({ type, label }) => {
+                  const st = unit.subtrades.find(s => s.type === type) || EMPTY_SUBTRADE(type);
+                  const lineTotal = st.mode === 'qty_rate'
+                    ? (Number(st.quantity) || 0) * (Number(st.rate) || 0)
+                    : (Number(st.cost) || 0);
+                  return (
+                    <div key={type} className={styles.subtradeRow}>
+                      <span className={styles.subtradeName}>{label}</span>
+                      <div className={styles.subtradeModeToggle}>
+                        <button
+                          type="button"
+                          className={`${styles.subtradeModeBtn}${st.mode === 'fixed' ? ' ' + styles.subtradeModeActive : ''}`}
+                          onClick={() => setSubtrade(unit._key, type, 'mode', 'fixed')}
+                          disabled={isLocked}
+                        >Fixed</button>
+                        <button
+                          type="button"
+                          className={`${styles.subtradeModeBtn}${st.mode === 'qty_rate' ? ' ' + styles.subtradeModeActive : ''}`}
+                          onClick={() => setSubtrade(unit._key, type, 'mode', 'qty_rate')}
+                          disabled={isLocked}
+                        >Qty×Rate</button>
+                      </div>
+                      <div className={styles.subtradeInputs}>
+                        {st.mode === 'fixed' ? (
+                          <input
+                            type="number" min="0" step="any"
+                            value={st.cost}
+                            readOnly={isLocked}
+                            onChange={e => setSubtrade(unit._key, type, 'cost', e.target.value)}
+                            placeholder="0.00"
+                          />
+                        ) : (
+                          <>
+                            <input
+                              type="number" min="0" step="any"
+                              value={st.quantity}
+                              readOnly={isLocked}
+                              onChange={e => setSubtrade(unit._key, type, 'quantity', e.target.value)}
+                              placeholder="Qty"
+                              className={styles.subtradeQtyInput}
+                            />
+                            <span className={styles.subtradeTimes}>×</span>
+                            <input
+                              type="number" min="0" step="any"
+                              value={st.rate}
+                              readOnly={isLocked}
+                              onChange={e => setSubtrade(unit._key, type, 'rate', e.target.value)}
+                              placeholder="Rate"
+                            />
+                          </>
+                        )}
+                      </div>
+                      <span className={`${styles.subtradeTotal}${lineTotal > 0 ? '' : ' ' + styles.subtradeTotalEmpty}`}>
+                        {lineTotal > 0 ? fmtMoney(lineTotal) : '—'}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className={styles.subtradesFooter}>
+                <div className={styles.subtradesMarginField}>
+                  <label>Subtrades Margin</label>
+                  <input
+                    type="number" min="0" max="100" step="1"
+                    value={unit.subtrade_margin}
+                    readOnly={isLocked}
+                    onChange={e => setUnit(unit._key, 'subtrade_margin', e.target.value)}
+                  />
+                  <span className={styles.subtradePct}>%</span>
+                </div>
+                <div className={styles.subtradesTotals}>
+                  <span>Cost: <strong>{fmtMoney(subtradeCost)}</strong></span>
+                  <span>Sell: <strong>{fmtMoney(subtradeSell)}</strong></span>
+                </div>
+              </div>
+            </div>
+
             <div className={styles.unitFooter}>
               {!isLocked && (
                 <button className={styles.addLineBtn} onClick={() => addLine(unit._key)}>+ Add Line</button>
@@ -748,6 +871,7 @@ export default function QBQuoteBuilderPage() {
                 <span>Waste: <strong>{fmtMoney(wasteSub)}</strong></span>
                 <span>Hardware: <strong>{fmtMoney(hwSub)}</strong></span>
                 <span>Labour: <strong>{fmtMoney(labourSub)}</strong></span>
+                {subtradeSell > 0 && <span>Subtrades: <strong>{fmtMoney(subtradeSell)}</strong></span>}
                 <span>Unit cost × {unit.quantity}: <strong>{fmtMoney(unitTotal)}</strong></span>
               </div>
               {!isLocked && unit.id && (

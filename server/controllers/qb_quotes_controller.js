@@ -26,15 +26,23 @@ async function fetchFull(id) {
   );
 
   if (units.length) {
+    const unitIds = units.map(u => u.id);
     const { rows: lines } = await pool.query(
       `SELECT * FROM qb_quote_unit_lines
        WHERE unit_id = ANY($1::uuid[])
        ORDER BY unit_id, sort_order, created_at`,
-      [units.map(u => u.id)]
+      [unitIds]
     );
-    for (const u of units) u.lines = lines.filter(l => l.unit_id === u.id);
+    const { rows: subtrades } = await pool.query(
+      `SELECT * FROM qb_unit_subtrades WHERE unit_id = ANY($1::uuid[]) ORDER BY unit_id, type`,
+      [unitIds]
+    );
+    for (const u of units) {
+      u.lines     = lines.filter(l => l.unit_id === u.id);
+      u.subtrades = subtrades.filter(s => s.unit_id === u.id);
+    }
   } else {
-    for (const u of units) u.lines = [];
+    for (const u of units) { u.lines = []; u.subtrades = []; }
   }
 
   header.units = units;
@@ -77,11 +85,14 @@ async function getAll(req, res) {
         c.company AS client_company,
         (
           SELECT COALESCE(SUM(
-            (COALESCE(m.s, 0) * (1 + h.waste_pct) + COALESCE(w.s, 0) +
-             (u.admin_hours * u.admin_rate + u.cnc_hours * u.cnc_rate +
-              u.edgebander_hours * u.edgebander_rate + u.assembly_hours * u.assembly_rate +
-              u.delivery_hours * u.delivery_rate + u.installation_hours * u.installation_rate)
-            ) * (1 + h.margin) * u.quantity
+            (
+              (COALESCE(m.s, 0) * (1 + h.waste_pct) + COALESCE(w.s, 0) +
+               (u.admin_hours * u.admin_rate + u.cnc_hours * u.cnc_rate +
+                u.edgebander_hours * u.edgebander_rate + u.assembly_hours * u.assembly_rate +
+                u.delivery_hours * u.delivery_rate + u.installation_hours * u.installation_rate)
+              ) * (1 + h.margin)
+              + COALESCE(sub.s, 0) * (1 + u.subtrade_margin)
+            ) * u.quantity
           ), 0)
           FROM qb_quote_units u
           LEFT JOIN (
@@ -92,6 +103,11 @@ async function getAll(req, res) {
             SELECT unit_id, SUM(total) AS s
             FROM qb_quote_unit_lines WHERE category = 'Hardware' GROUP BY unit_id
           ) w ON w.unit_id = u.id
+          LEFT JOIN (
+            SELECT unit_id,
+                   SUM(CASE WHEN mode='fixed' THEN cost ELSE quantity * rate END) AS s
+            FROM qb_unit_subtrades GROUP BY unit_id
+          ) sub ON sub.unit_id = u.id
           WHERE u.quote_id = h.id
         ) AS subtotal_ex_gst
       FROM qb_quote_headers h
@@ -212,8 +228,9 @@ async function _upsertFull(quoteId, body, client) {
              edgebander_rate_overridden   = COALESCE($22, edgebander_rate_overridden),
              assembly_rate_overridden     = COALESCE($23, assembly_rate_overridden),
              delivery_rate_overridden     = COALESCE($24, delivery_rate_overridden),
-             installation_rate_overridden = COALESCE($25, installation_rate_overridden)
-         WHERE id=$26 AND quote_id=$27`,
+             installation_rate_overridden = COALESCE($25, installation_rate_overridden),
+             subtrade_margin=$26
+         WHERE id=$27 AND quote_id=$28`,
         [u.unit_number ?? i + 1, u.drawing_number || null, u.room_number || null,
          u.level || null, u.description || null, u.quantity ?? 1, u.sort_order ?? i,
          adminH, cncH, edgeH, assemblyH, deliveryH, installH,
@@ -223,6 +240,7 @@ async function _upsertFull(quoteId, body, client) {
          u.admin_rate_overridden        ?? null, u.cnc_rate_overridden          ?? null,
          u.edgebander_rate_overridden   ?? null, u.assembly_rate_overridden     ?? null,
          u.delivery_rate_overridden     ?? null, u.installation_rate_overridden ?? null,
+         u.subtrade_margin ?? 0,
          unitId, quoteId]
       );
     } else {
@@ -231,12 +249,14 @@ async function _upsertFull(quoteId, body, client) {
         `INSERT INTO qb_quote_units
            (quote_id, unit_number, drawing_number, room_number, level, description, quantity, sort_order,
             admin_hours, cnc_hours, edgebander_hours, assembly_hours, delivery_hours, installation_hours,
-            admin_rate, cnc_rate, edgebander_rate, assembly_rate, delivery_rate, installation_rate)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20) RETURNING id`,
+            admin_rate, cnc_rate, edgebander_rate, assembly_rate, delivery_rate, installation_rate,
+            subtrade_margin)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21) RETURNING id`,
         [quoteId, u.unit_number ?? i + 1, u.drawing_number || null, u.room_number || null,
          u.level || null, u.description || null, u.quantity ?? 1, u.sort_order ?? i,
          adminH, cncH, edgeH, assemblyH, deliveryH, installH,
-         R('admin'), R('cnc'), R('edgebander'), R('assembly'), R('delivery'), R('installation')]
+         R('admin'), R('cnc'), R('edgebander'), R('assembly'), R('delivery'), R('installation'),
+         u.subtrade_margin ?? 0]
       );
       unitId = row.id;
     }
@@ -263,6 +283,27 @@ async function _upsertFull(quoteId, body, client) {
         );
       }
     }
+
+    // Upsert subtrades — rows with no value entered are deleted to keep DB clean
+    for (const st of (u.subtrades || [])) {
+      const cost = parseFloat(st.cost) || 0;
+      const qty  = parseFloat(st.quantity) || 0;
+      const rate = parseFloat(st.rate) || 0;
+      if (cost === 0 && qty === 0 && rate === 0) {
+        await client.query(
+          `DELETE FROM qb_unit_subtrades WHERE unit_id=$1 AND type=$2`,
+          [unitId, st.type]
+        );
+      } else {
+        await client.query(
+          `INSERT INTO qb_unit_subtrades (unit_id, type, mode, cost, quantity, rate)
+           VALUES ($1,$2,$3,$4,$5,$6)
+           ON CONFLICT (unit_id, type) DO UPDATE SET
+             mode=$3, cost=$4, quantity=$5, rate=$6`,
+          [unitId, st.type, st.mode || 'fixed', cost, qty, rate]
+        );
+      }
+    }
   }
 
   // Write calculated subtotal (ex-GST) back to quotes.value when linked
@@ -272,11 +313,14 @@ async function _upsertFull(quoteId, body, client) {
   if (hdr?.quote_id) {
     const { rows: [tot] } = await client.query(`
       SELECT COALESCE(SUM(
-        (COALESCE(m.s, 0) * (1 + $2::numeric) + COALESCE(w.s, 0) +
-         (u.admin_hours * u.admin_rate + u.cnc_hours * u.cnc_rate +
-          u.edgebander_hours * u.edgebander_rate + u.assembly_hours * u.assembly_rate +
-          u.delivery_hours * u.delivery_rate + u.installation_hours * u.installation_rate)
-        ) * (1 + $3::numeric) * u.quantity
+        (
+          (COALESCE(m.s, 0) * (1 + $2::numeric) + COALESCE(w.s, 0) +
+           (u.admin_hours * u.admin_rate + u.cnc_hours * u.cnc_rate +
+            u.edgebander_hours * u.edgebander_rate + u.assembly_hours * u.assembly_rate +
+            u.delivery_hours * u.delivery_rate + u.installation_hours * u.installation_rate)
+          ) * (1 + $3::numeric)
+          + COALESCE(sub.s, 0) * (1 + u.subtrade_margin)
+        ) * u.quantity
       ), 0) AS subtotal
       FROM qb_quote_units u
       LEFT JOIN (
@@ -285,6 +329,11 @@ async function _upsertFull(quoteId, body, client) {
       LEFT JOIN (
         SELECT unit_id, SUM(total) AS s FROM qb_quote_unit_lines WHERE category = 'Hardware' GROUP BY unit_id
       ) w ON w.unit_id = u.id
+      LEFT JOIN (
+        SELECT unit_id,
+               SUM(CASE WHEN mode='fixed' THEN cost ELSE quantity * rate END) AS s
+        FROM qb_unit_subtrades GROUP BY unit_id
+      ) sub ON sub.unit_id = u.id
       WHERE u.quote_id = $1
     `, [quoteId, hdr.waste_pct, hdr.margin]);
     // Sync value, client_name, and status back to the linked JT quote
@@ -408,8 +457,10 @@ async function getSummary(req, res) {
               u.delivery_hours, u.installation_hours,
               u.admin_rate, u.cnc_rate, u.edgebander_rate, u.assembly_rate,
               u.delivery_rate, u.installation_rate,
+              u.subtrade_margin,
               COALESCE(m.s, 0) AS mat_sub,
-              COALESCE(w.s, 0) AS hw_sub
+              COALESCE(w.s, 0) AS hw_sub,
+              COALESCE(sub.s, 0) AS subtrade_cost
        FROM qb_quote_units u
        LEFT JOIN (
          SELECT unit_id, SUM(total) AS s FROM qb_quote_unit_lines
@@ -419,6 +470,11 @@ async function getSummary(req, res) {
          SELECT unit_id, SUM(total) AS s FROM qb_quote_unit_lines
          WHERE category = 'Hardware' GROUP BY unit_id
        ) w ON w.unit_id = u.id
+       LEFT JOIN (
+         SELECT unit_id,
+                SUM(CASE WHEN mode='fixed' THEN cost ELSE quantity * rate END) AS s
+         FROM qb_unit_subtrades GROUP BY unit_id
+       ) sub ON sub.unit_id = u.id
        WHERE u.quote_id = $1
        ORDER BY u.sort_order, u.unit_number`,
       [req.params.id]
@@ -428,18 +484,20 @@ async function getSummary(req, res) {
     const wastePct = Number(header.waste_pct);
     let subtotal = 0;
     const rows = units.map(u => {
-      const matSub    = Number(u.mat_sub);
-      const hwSub     = Number(u.hw_sub);
-      const labourSub = Number(u.admin_hours)        * Number(u.admin_rate) +
-                        Number(u.cnc_hours)           * Number(u.cnc_rate) +
-                        Number(u.edgebander_hours)    * Number(u.edgebander_rate) +
-                        Number(u.assembly_hours)      * Number(u.assembly_rate) +
-                        Number(u.delivery_hours)      * Number(u.delivery_rate) +
-                        Number(u.installation_hours)  * Number(u.installation_rate);
-      const unitCost  = (matSub * (1 + wastePct) + hwSub + labourSub) * (1 + margin);
-      const total     = unitCost * Number(u.quantity);
+      const matSub       = Number(u.mat_sub);
+      const hwSub        = Number(u.hw_sub);
+      const subtradeCost = Number(u.subtrade_cost);
+      const labourSub    = Number(u.admin_hours)        * Number(u.admin_rate) +
+                           Number(u.cnc_hours)           * Number(u.cnc_rate) +
+                           Number(u.edgebander_hours)    * Number(u.edgebander_rate) +
+                           Number(u.assembly_hours)      * Number(u.assembly_rate) +
+                           Number(u.delivery_hours)      * Number(u.delivery_rate) +
+                           Number(u.installation_hours)  * Number(u.installation_rate);
+      const subtradeSell = subtradeCost * (1 + Number(u.subtrade_margin));
+      const unitCost     = (matSub * (1 + wastePct) + hwSub + labourSub) * (1 + margin) + subtradeSell;
+      const total        = unitCost * Number(u.quantity);
       subtotal += total;
-      return { ...u, labour_sub: labourSub, unit_cost: unitCost, total };
+      return { ...u, labour_sub: labourSub, subtrade_sell: subtradeSell, unit_cost: unitCost, total };
     });
 
     const gst            = subtotal * 0.10;
@@ -561,16 +619,20 @@ async function getPdf(req, res) {
     let subtotal   = 0;
 
     const unitRows = quote.units.map(u => {
-      const matSub    = u.lines.filter(l => l.category === 'Materials').reduce((s, l) => s + Number(l.total), 0);
-      const hwSub     = u.lines.filter(l => l.category === 'Hardware').reduce((s, l)  => s + Number(l.total), 0);
-      const labourSub = Number(u.admin_hours)       * Number(u.admin_rate) +
-                        Number(u.cnc_hours)          * Number(u.cnc_rate) +
-                        Number(u.edgebander_hours)   * Number(u.edgebander_rate) +
-                        Number(u.assembly_hours)     * Number(u.assembly_rate) +
-                        Number(u.delivery_hours)     * Number(u.delivery_rate) +
-                        Number(u.installation_hours) * Number(u.installation_rate);
-      const unitCost  = (matSub * (1 + wastePct) + hwSub + labourSub) * (1 + margin);
-      const total     = unitCost * Number(u.quantity);
+      const matSub       = u.lines.filter(l => l.category === 'Materials').reduce((s, l) => s + Number(l.total), 0);
+      const hwSub        = u.lines.filter(l => l.category === 'Hardware').reduce((s, l)  => s + Number(l.total), 0);
+      const labourSub    = Number(u.admin_hours)       * Number(u.admin_rate) +
+                           Number(u.cnc_hours)          * Number(u.cnc_rate) +
+                           Number(u.edgebander_hours)   * Number(u.edgebander_rate) +
+                           Number(u.assembly_hours)     * Number(u.assembly_rate) +
+                           Number(u.delivery_hours)     * Number(u.delivery_rate) +
+                           Number(u.installation_hours) * Number(u.installation_rate);
+      const subtradeCost = (u.subtrades || []).reduce((s, st) => {
+        return s + (st.mode === 'qty_rate' ? Number(st.quantity) * Number(st.rate) : Number(st.cost));
+      }, 0);
+      const subtradeSell = subtradeCost * (1 + Number(u.subtrade_margin || 0));
+      const unitCost     = (matSub * (1 + wastePct) + hwSub + labourSub) * (1 + margin) + subtradeSell;
+      const total        = unitCost * Number(u.quantity);
       subtotal += total;
       return { ...u, unit_cost: unitCost, total };
     });
