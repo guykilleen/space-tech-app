@@ -179,7 +179,7 @@ label {
 .empty-text  { font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; }
 
 /* ── Currency ── */
-.currency { font-weight: 500; color: var(--mid); }
+.currency { font-weight: 500; color: var(--mid); text-align: right; }
 
 /* ── Inline edit row ── */
 .edit-row td { background: var(--sawdust); padding: 14px 16px; }
