@@ -35,9 +35,18 @@ export default function QBBudgetQtyPage() {
     <div className={styles.loadingMsg}>Loading…</div>
   );
 
-  const { margin, waste_pct, lines, labour, totals } = data;
+  const { margin, waste_pct, lines, labour, subtrades = [], totals } = data;
   const materials = lines.filter(r => r.category === 'Materials');
   const hardware  = lines.filter(r => r.category === 'Hardware');
+
+  const SUBTRADE_LABELS = {
+    '2pac_flat':     '2 Pac Flat',
+    '2pac_recessed': '2 Pac Recessed',
+    'stone':         'Stone',
+    'upholstery':    'Upholstery',
+    'glass':         'Glass',
+    'steel':         'Steel',
+  };
 
   const labourRows = [
     { label: 'Admin',        hoursField: 'admin_hours',        costField: 'admin_cost' },
@@ -181,6 +190,40 @@ export default function QBBudgetQtyPage() {
         </table>
       </div>
 
+      {/* Subtrades */}
+      {subtrades.length > 0 && (
+        <div className="table-wrap" style={{ marginBottom: 32 }}>
+          <div className="table-toolbar">
+            <span className="ttitle">Subtrades</span>
+          </div>
+          <table className="std-table">
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th style={{ textAlign: 'right' }}>Cost (before margin)</th>
+                <th style={{ textAlign: 'right' }}>Sell (after margin)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {subtrades.map(r => (
+                <tr key={r.type}>
+                  <td>{SUBTRADE_LABELS[r.type] || r.type}</td>
+                  <td className="currency">{fmtMoney(r.total_cost)}</td>
+                  <td className="currency"><strong>{fmtMoney(r.total_sell)}</strong></td>
+                </tr>
+              ))}
+              <tr style={{ background: 'var(--sawdust)', fontWeight: 600 }}>
+                <td style={{ textAlign: 'right', fontSize: '.7rem', letterSpacing: '.1em', color: 'var(--muted)', textTransform: 'uppercase' }}>
+                  Subtrades subtotal
+                </td>
+                <td className="currency">{fmtMoney(totals.subtrades_cost)}</td>
+                <td className="currency">{fmtMoney(totals.subtrades_sell)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      )}
+
       {/* Cost summary */}
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
         <div className={styles.budgetSummary}>
@@ -214,6 +257,12 @@ export default function QBBudgetQtyPage() {
             <span>Profit margin ({(margin * 100).toFixed(0)}%)</span>
             <strong>{fmtMoney(totals.margin_amount)}</strong>
           </div>
+          {totals.subtrades_sell > 0 && (
+            <div className={`${styles.budgetSummaryRow} ${styles.budgetSubline}`}>
+              <span>Subtrades (incl. margin)</span>
+              <strong>{fmtMoney(totals.subtrades_sell)}</strong>
+            </div>
+          )}
           <div className={styles.budgetSummaryRow}>
             <span>Subtotal (ex GST)</span>
             <strong>{fmtMoney(totals.subtotal)}</strong>

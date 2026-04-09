@@ -553,6 +553,30 @@ async function getBudgetQty(req, res) {
       WHERE quote_id = $1
     `, [req.params.id]);
 
+    // Subtrades aggregated per type across all units — only types with values
+    // total_cost = raw item cost × unit quantity; total_sell applies each unit's own margin
+    const { rows: subtrades } = await pool.query(`
+      SELECT
+        s.type,
+        SUM(
+          (CASE WHEN s.mode='fixed' THEN s.cost ELSE s.quantity * s.rate END)
+          * u.quantity
+        ) AS total_cost,
+        SUM(
+          (CASE WHEN s.mode='fixed' THEN s.cost ELSE s.quantity * s.rate END)
+          * (1 + u.subtrade_margin)
+          * u.quantity
+        ) AS total_sell
+      FROM qb_unit_subtrades s
+      JOIN qb_quote_units u ON s.unit_id = u.id
+      WHERE u.quote_id = $1
+      GROUP BY s.type
+      HAVING SUM(
+        CASE WHEN s.mode='fixed' THEN s.cost ELSE s.quantity * s.rate END
+      ) > 0
+      ORDER BY s.type
+    `, [req.params.id]);
+
     const margin      = Number(header.margin);
     const wastePct    = Number(header.waste_pct);
     const matRaw      = lines.filter(l => l.category === 'Materials')
@@ -573,13 +597,15 @@ async function getBudgetQty(req, res) {
       delivery_cost:      Number(labour.delivery_cost),
       installation_cost:  Number(labour.installation_cost),
     };
-    const labourTotal = labourHrs.admin_cost + labourHrs.cnc_cost + labourHrs.edgebander_cost +
-                        labourHrs.assembly_cost + labourHrs.delivery_cost + labourHrs.installation_cost;
+    const labourTotal      = labourHrs.admin_cost + labourHrs.cnc_cost + labourHrs.edgebander_cost +
+                             labourHrs.assembly_cost + labourHrs.delivery_cost + labourHrs.installation_cost;
+    const subtradeCostTotal = subtrades.reduce((s, r) => s + Number(r.total_cost), 0);
+    const subtradeSellTotal = subtrades.reduce((s, r) => s + Number(r.total_sell), 0);
     const wasteAmount    = matRaw * wastePct;
     const matWithWaste   = matRaw + wasteAmount;
     const costsTotal     = matWithWaste + hwTotal + labourTotal;
     const marginAmount   = costsTotal * margin;
-    const subtotal       = costsTotal + marginAmount;
+    const subtotal       = costsTotal + marginAmount + subtradeSellTotal;
     const gst            = subtotal * 0.10;
     const total          = subtotal + gst;
 
@@ -588,14 +614,17 @@ async function getBudgetQty(req, res) {
       waste_pct: wastePct,
       lines,
       labour: labourHrs,
+      subtrades,
       totals: {
-        materials_raw:   matRaw,
-        waste_amount:    wasteAmount,
-        materials:       matWithWaste,
-        hardware:        hwTotal,
-        labour:          labourTotal,
-        costs_total:     costsTotal,
-        margin_amount:   marginAmount,
+        materials_raw:      matRaw,
+        waste_amount:       wasteAmount,
+        materials:          matWithWaste,
+        hardware:           hwTotal,
+        labour:             labourTotal,
+        costs_total:        costsTotal,
+        margin_amount:      marginAmount,
+        subtrades_cost:     subtradeCostTotal,
+        subtrades_sell:     subtradeSellTotal,
         subtotal,
         gst,
         total,
