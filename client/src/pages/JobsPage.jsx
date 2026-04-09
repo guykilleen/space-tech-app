@@ -60,6 +60,7 @@ export default function JobsPage() {
       hours_admin: j.hours_admin, hours_machining: j.hours_machining,
       hours_assembly: j.hours_assembly, hours_delivery: j.hours_delivery,
       hours_install: j.hours_install,
+      notes: j.notes || '',
     });
   }
 
@@ -135,6 +136,13 @@ export default function JobsPage() {
                         )}
                       </td>
                     </tr>
+                    {j.notes && editId !== j.id && (
+                      <tr style={isSub ? { background:'rgba(200,169,110,.04)' } : {}}>
+                        <td colSpan={11} style={{ paddingTop:0, paddingBottom:8, paddingLeft:20, fontSize:'.72rem', color:'var(--muted)', whiteSpace:'pre-wrap', wordBreak:'break-word' }}>
+                          {j.notes}
+                        </td>
+                      </tr>
+                    )}
                     {editId === j.id && (
                       <tr className="edit-row">
                         <td colSpan={11}>
@@ -180,6 +188,17 @@ export default function JobsPage() {
                               <label>Total Hours</label>
                               <input value={totalHrs(editData).toFixed(1)+' hrs'} readOnly style={{ background:'var(--dark)', color:'var(--oak)', fontWeight:500, cursor:'default' }} />
                             </div>
+                          </div>
+                          <div className="edit-field" style={{ marginTop:12, width:'100%' }}>
+                            <label>Notes</label>
+                            <textarea
+                              rows={4}
+                              style={{ resize:'vertical', width:'100%', padding:'8px 10px', fontSize:'.78rem', background:'var(--white)', fontFamily:'inherit', boxSizing:'border-box' }}
+                              value={editData.notes}
+                              onChange={e=>setEditData(d=>({...d,notes:e.target.value}))}
+                              onInput={e=>{ e.target.style.height='auto'; e.target.style.height=e.target.scrollHeight+'px'; }}
+                              placeholder="Add job notes…"
+                            />
                           </div>
                           <div className="edit-actions" style={{ marginTop:14 }}>
                             <button className="smbtn smbtn-save" onClick={() => handleSaveEdit(j.id)}>Save Changes</button>

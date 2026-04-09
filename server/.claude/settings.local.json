@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(node db/qb_migrate_contact_address.js)"
+      "Bash(node db/qb_migrate_contact_address.js)",
+      "Read(//c/Users/GuyKilleen/Tresorit/Space Tech Design/space-tech-app/**)",
+      "Bash(npm test:*)",
+      "Bash(railway:*)"
     ]
   }
 }

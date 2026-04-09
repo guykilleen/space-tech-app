@@ -139,7 +139,7 @@ async function update(req, res) {
   const {
     job_number, quote_number, client_name, project,
     hours_admin, hours_machining, hours_assembly, hours_delivery, hours_install,
-    wip_start, wip_due, wip_complete, wip_completed
+    wip_start, wip_due, wip_complete, wip_completed, notes
   } = req.body;
 
   try {
@@ -152,8 +152,9 @@ async function update(req, res) {
          job_number=$1, quote_number=$2, client_name=$3, project=$4,
          hours_admin=$5, hours_machining=$6, hours_assembly=$7,
          hours_delivery=$8, hours_install=$9,
-         wip_start=$10, wip_due=$11, wip_complete=$12, wip_completed=$13
-       WHERE id=$14 RETURNING *`,
+         wip_start=$10, wip_due=$11, wip_complete=$12, wip_completed=$13,
+         notes=$14
+       WHERE id=$15 RETURNING *`,
       [job_number ?? e.job_number, quote_number ?? e.quote_number,
        client_name ?? e.client_name, project ?? e.project,
        hours_admin ?? e.hours_admin, hours_machining ?? e.hours_machining,
@@ -163,6 +164,7 @@ async function update(req, res) {
        wip_due   !== undefined ? wip_due   || null : e.wip_due,
        wip_complete  ?? e.wip_complete,
        wip_completed ?? e.wip_completed,
+       notes !== undefined ? notes || null : e.notes,
        req.params.id]
     );
     res.json(rows[0]);

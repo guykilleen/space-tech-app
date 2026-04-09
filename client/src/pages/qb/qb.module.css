@@ -92,10 +92,12 @@
   text-transform: uppercase;
   color: var(--muted);
 }
-.unitField input {
+.unitField input,
+.unitField textarea {
   padding: 8px 10px;
   font-size: .78rem;
   background: var(--white);
+  font-family: inherit;
 }
 .removeUnit {
   background: none;

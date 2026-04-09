@@ -473,7 +473,14 @@ export default function QBQuoteBuilderPage() {
               </div>
               <div className="field span-4">
                 <label>Notes</label>
-                <input value={header.notes} onChange={e => setH('notes', e.target.value)} placeholder="Internal notes or client-facing exclusions" />
+                <textarea
+                  rows={3}
+                  style={{ resize:'vertical', boxSizing:'border-box' }}
+                  value={header.notes}
+                  onChange={e => setH('notes', e.target.value)}
+                  onInput={e=>{ e.target.style.height='auto'; e.target.style.height=e.target.scrollHeight+'px'; }}
+                  placeholder="Internal notes or client-facing exclusions"
+                />
               </div>
             </div>
           </>
@@ -525,7 +532,14 @@ export default function QBQuoteBuilderPage() {
             </div>
             <div className="field span-2">
               <label>Notes</label>
-              <input value={header.notes} onChange={e => setH('notes', e.target.value)} placeholder="Internal notes or client-facing exclusions" />
+              <textarea
+                rows={3}
+                style={{ resize:'vertical', boxSizing:'border-box' }}
+                value={header.notes}
+                onChange={e => setH('notes', e.target.value)}
+                onInput={e=>{ e.target.style.height='auto'; e.target.style.height=e.target.scrollHeight+'px'; }}
+                placeholder="Internal notes or client-facing exclusions"
+              />
             </div>
           </div>
         )}
@@ -553,7 +567,14 @@ export default function QBQuoteBuilderPage() {
                 </div>
                 <div className={styles.unitField} style={{ flex: 2 }}>
                   <label>Description</label>
-                  <input value={unit.description} onChange={e => setUnit(unit._key, 'description', e.target.value)} placeholder="e.g. Tas Oak veneer on 40mm LDF joinery" />
+                  <textarea
+                    rows={3}
+                    style={{ resize:'vertical', boxSizing:'border-box', width:'100%' }}
+                    value={unit.description}
+                    onChange={e => setUnit(unit._key, 'description', e.target.value)}
+                    onInput={e=>{ e.target.style.height='auto'; e.target.style.height=e.target.scrollHeight+'px'; }}
+                    placeholder="e.g. Tas Oak veneer on 40mm LDF joinery"
+                  />
                 </div>
                 <div className={styles.unitField} style={{ width: 80 }}>
                   <label>Qty</label>

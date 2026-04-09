@@ -68,6 +68,7 @@ CREATE TABLE IF NOT EXISTS jobs (
     wip_due         DATE,        -- due on-site
     wip_complete    SMALLINT    NOT NULL DEFAULT 0 CHECK (wip_complete BETWEEN 0 AND 100),
     wip_completed   BOOLEAN     NOT NULL DEFAULT FALSE,
+    notes           TEXT,
     created_by      UUID        REFERENCES users(id) ON DELETE SET NULL,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
