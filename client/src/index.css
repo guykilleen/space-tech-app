@@ -91,15 +91,17 @@ label {
 
 /* ── Table ── */
 .std-table { width: 100%; border-collapse: collapse; font-size: .77rem; }
-.std-table thead { background: var(--dark); color: var(--oak-light); }
+.std-table thead { background: #fff; }
 .std-table th {
   padding: 13px 16px;
   text-align: left;
   font-size: .58rem;
   letter-spacing: .2em;
-  text-transform: uppercase;
+  font-variant: small-caps;
   font-weight: 400;
   white-space: nowrap;
+  color: var(--muted);
+  border-bottom: 1px solid var(--oak-light);
 }
 .std-table td {
   padding: 12px 16px;

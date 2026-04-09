@@ -57,7 +57,7 @@ export default function QBBudgetQtyPage() {
     { label: 'Installation', hoursField: 'installation_hours', costField: 'installation_cost' },
   ];
 
-  const tableClass = `std-table ${styles.budgetTable}`;
+  const tableClass = 'std-table';
 
   return (
     <div className={styles.builderPage}>
