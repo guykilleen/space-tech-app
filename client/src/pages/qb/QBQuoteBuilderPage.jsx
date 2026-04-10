@@ -4,6 +4,7 @@ import { useQBDirty } from '../../context/QBDirtyContext';
 import { toast } from 'react-toastify';
 import api from '../../utils/api';
 import styles from './qb.module.css';
+import JobCreateModal from '../../components/JobCreateModal';
 
 const today = new Date().toISOString().split('T')[0];
 let _tempId = 0;
@@ -179,6 +180,8 @@ export default function QBQuoteBuilderPage() {
   const [rateDiff,     setRateDiff]     = useState(null); // { unitId, unitNum, materials, labour }
   const [syncing,      setSyncing]      = useState(false);
   const [pdfLoading,   setPdfLoading]   = useState(false);
+  const [jobModal,     setJobModal]     = useState(null);
+  const savedStatusRef = useRef(null); // tracks last-saved QB status to detect accepted transition
 
   const [header, setHeader] = useState({
     quote_number: searchParams.get('quote_number') || '',
@@ -233,6 +236,7 @@ export default function QBQuoteBuilderPage() {
         const q = res.data;
         setLinkedQuoteId(q.quote_id || null);
         setJtClientName(q.jt_client_name || '');
+        savedStatusRef.current = q.status;
         setHeader({
           quote_number: q.quote_number,
           date:         q.date?.split('T')[0] || today,
@@ -460,6 +464,7 @@ export default function QBQuoteBuilderPage() {
   // ── Save ────────────────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
     if (!header.quote_number.trim()) return toast.error('Quote number required');
+    const prevQbStatus = savedStatusRef.current;
     setSaving(true);
     try {
       const body = {
@@ -544,13 +549,24 @@ export default function QBQuoteBuilderPage() {
         setUnits(q.units.map(u => { const m = mapUnit(u); return { ...m, lines: mergeWithDefaults(m.lines, priceList) }; }));
         deletedUnitIds.current = [];
         deletedLineIds.current = [];
+        savedStatusRef.current = header.status;
+        if (prevQbStatus !== 'accepted' && header.status === 'accepted' && linkedQuoteId) {
+          const preHours = {
+            hours_admin:     units.reduce((s, u) => s + (Number(u.admin_hours)        || 0) * (Number(u.quantity) || 1), 0),
+            hours_machining: units.reduce((s, u) => s + ((Number(u.cnc_hours) || 0) + (Number(u.edgebander_hours) || 0)) * (Number(u.quantity) || 1), 0),
+            hours_assembly:  units.reduce((s, u) => s + (Number(u.assembly_hours)     || 0) * (Number(u.quantity) || 1), 0),
+            hours_delivery:  units.reduce((s, u) => s + (Number(u.delivery_hours)     || 0) * (Number(u.quantity) || 1), 0),
+            hours_install:   units.reduce((s, u) => s + (Number(u.installation_hours) || 0) * (Number(u.quantity) || 1), 0),
+          };
+          setJobModal({ id: linkedQuoteId, quote_number: header.quote_number, client_name: jtClientName, project: header.project, preHours });
+        }
       }
     } catch (err) {
       toast.error(err.response?.data?.error || 'Save failed');
     } finally {
       setSaving(false);
     }
-  }, [header, units, id, isNew, navigate, labourRates]);
+  }, [header, units, id, isNew, navigate, labourRates, linkedQuoteId, jtClientName]);
 
   // ── Derived totals ──────────────────────────────────────────────────────
   const margin    = Number(header.margin);
@@ -1085,6 +1101,14 @@ export default function QBQuoteBuilderPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {jobModal && (
+        <JobCreateModal
+          quote={jobModal}
+          onClose={() => setJobModal(null)}
+          onCreated={() => { setJobModal(null); toast.success(`Job created from ${jobModal.quote_number}`); }}
+        />
       )}
 
     </div>

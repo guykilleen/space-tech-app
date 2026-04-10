@@ -87,7 +87,7 @@ export default function QuotesPage() {
       toast.success('Quote updated');
       closeEdit();
       await load();
-      if (prevStatus !== 'accepted' && res.data.status === 'accepted') {
+      if ((prevStatus !== 'accepted' && res.data.status === 'accepted') || res.data._statusChanged) {
         setJobModal(res.data);
       }
     } catch (err) {

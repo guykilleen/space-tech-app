@@ -8,6 +8,7 @@ router.use(authenticate, isAdminOrMgr);
 router.get('/next-number',              ctrl.getNextNumber);
 // Job Tracker integration — must be before /:id
 router.get('/by-quote/:quoteId',        ctrl.getByQuoteId);
+router.get('/hours-for-quote/:quoteId', ctrl.getHoursForQuote);
 router.post('/from-quote/:quoteId',     ctrl.createFromQuote);
 router.get('/',                         ctrl.getAll);
 router.get('/:id',                      ctrl.getOne);

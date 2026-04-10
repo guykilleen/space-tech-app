@@ -132,6 +132,28 @@ async function getOne(req, res) {
   }
 }
 
+// Return summed job-tracker hours for a given tracker quote ID (via qb_quote_headers.quote_id FK)
+async function getHoursForQuote(req, res) {
+  try {
+    const { rows: [hours] } = await pool.query(
+      `SELECT
+         COALESCE(SUM(u.admin_hours        * u.quantity), 0) AS hours_admin,
+         COALESCE(SUM((u.cnc_hours + u.edgebander_hours) * u.quantity), 0) AS hours_machining,
+         COALESCE(SUM(u.assembly_hours     * u.quantity), 0) AS hours_assembly,
+         COALESCE(SUM(u.delivery_hours     * u.quantity), 0) AS hours_delivery,
+         COALESCE(SUM(u.installation_hours * u.quantity), 0) AS hours_install
+       FROM qb_quote_units u
+       JOIN qb_quote_headers h ON h.id = u.quote_id
+       WHERE h.quote_id = $1`,
+      [req.params.quoteId]
+    );
+    res.json(hours);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
 // Creates or fully updates a quote (header + all units + lines) in one transaction.
 // Body:
 //   { quote_number, date, client_id, project, prepared_by, margin, status, notes,
@@ -1023,7 +1045,7 @@ async function createFromQuote(req, res) {
 }
 
 module.exports = {
-  getNextNumber, getAll, getOne, create, update, updateStatus, remove,
+  getNextNumber, getAll, getOne, getHoursForQuote, create, update, updateStatus, remove,
   getSummary, getBudgetQty, getPdf,
   getByQuoteId, createFromQuote,
   getRateDiff, syncRates,

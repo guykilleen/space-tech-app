@@ -12,9 +12,20 @@ export default function JobCreateModal({ quote, onClose, onCreated }) {
   const [parentJobId, setParentJobId] = useState('');
   const [jobs, setJobs]               = useState([]);
   const [loading, setLoading]         = useState(false);
-  const [hours, setHours]             = useState({ hours_admin:0, hours_machining:0, hours_assembly:0, hours_delivery:0, hours_install:0 });
+  const [hours, setHours]             = useState(quote.preHours || { hours_admin:0, hours_machining:0, hours_assembly:0, hours_delivery:0, hours_install:0 });
 
   const totalHrs = HRS_FIELDS.reduce((s, k) => s + (parseFloat(hours[k]) || 0), 0);
+
+  useEffect(() => {
+    if (quote.preHours) return; // already populated from QB Builder state
+    api.get(`/qb/quotes/hours-for-quote/${quote.id}`)
+      .then(r => {
+        const h = r.data;
+        if (Object.values(h).some(v => Number(v) > 0)) setHours(h);
+      })
+      .catch(() => {}); // silently ignore — modal still usable with zeros
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (isVariation) {
