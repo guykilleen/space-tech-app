@@ -51,6 +51,7 @@ const SCHEMA = `
     email      VARCHAR(200),
     company    VARCHAR(120),
     phone      VARCHAR(40),
+    address    VARCHAR(200),
     created_at TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ  NOT NULL DEFAULT NOW()
   );
@@ -116,10 +117,26 @@ const SCHEMA = `
     delivery_rate_overridden     BOOLEAN       NOT NULL DEFAULT FALSE,
     installation_rate_overridden BOOLEAN       NOT NULL DEFAULT FALSE,
     rates_last_synced_at         TIMESTAMPTZ,
+    subtrade_margin              NUMERIC(5,4)  NOT NULL DEFAULT 0,
     created_at                   TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
     updated_at                   TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
     UNIQUE (quote_id, unit_number)
   );
+
+  CREATE TABLE IF NOT EXISTS qb_unit_subtrades (
+    id       UUID          PRIMARY KEY DEFAULT uuid_generate_v4(),
+    unit_id  UUID          NOT NULL REFERENCES qb_quote_units(id) ON DELETE CASCADE,
+    type     VARCHAR(30)   NOT NULL
+               CHECK (type IN ('2pac_flat','2pac_recessed','stone','upholstery','glass','steel')),
+    mode     VARCHAR(10)   NOT NULL DEFAULT 'fixed'
+               CHECK (mode IN ('fixed','qty_rate')),
+    cost     NUMERIC(10,2) NOT NULL DEFAULT 0,
+    quantity NUMERIC(10,3) NOT NULL DEFAULT 0,
+    rate     NUMERIC(10,2) NOT NULL DEFAULT 0,
+    UNIQUE (unit_id, type)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_qb_unit_subtrades_unit ON qb_unit_subtrades(unit_id);
 
   CREATE TABLE IF NOT EXISTS qb_quote_unit_lines (
     id               UUID          PRIMARY KEY DEFAULT uuid_generate_v4(),

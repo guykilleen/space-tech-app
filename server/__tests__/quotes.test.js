@@ -124,6 +124,6 @@ describe('GET /api/quotes/next-number', () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('next_number');
-    expect(res.body.next_number).toMatch(/^V-\d{4}$/);
+    expect(res.body.next_number).toMatch(/^Q-\d{4,}$/);
   });
 });

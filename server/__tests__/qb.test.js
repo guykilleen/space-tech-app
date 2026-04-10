@@ -147,14 +147,19 @@ describe('QB Quote CRUD', () => {
     expect(Number(unit.delivery_rate)).toBe(100);
   });
 
-  it('POST returns 400 when quote_number is missing', async () => {
+  it('POST auto-generates a Q-NNNN quote_number when none is provided', async () => {
     const body = BODY();
     delete body.quote_number;
     const res = await request(app)
       .post('/api/qb/quotes')
       .set('Authorization', `Bearer ${adminToken}`)
       .send(body);
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(201);
+    expect(res.body.quote_number).toMatch(/^Q-\d{4,}$/);
+    // Clean up the auto-generated quote
+    if (res.body.id) {
+      await pool.query(`DELETE FROM qb_quote_headers WHERE id = $1`, [res.body.id]);
+    }
   });
 
   it('POST returns 409 on duplicate quote_number', async () => {
@@ -557,5 +562,518 @@ describe('Job Tracker integration', () => {
 
     expect(res.status).toBe(404);
     await pool.query(`DELETE FROM quotes WHERE id = $1`, [q.id]);
+  });
+});
+
+// ── QB Quote number auto-generation ───────────────────────────────────────
+
+describe('GET /api/qb/quotes/next-number', () => {
+  it('returns a Q-NNNN formatted number', async () => {
+    const res = await request(app)
+      .get('/api/qb/quotes/next-number')
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.next_number).toMatch(/^Q-\d{4,}$/);
+  });
+
+  it('increments past an existing Q- number', async () => {
+    await pool.query(
+      `INSERT INTO quotes (quote_number, client_name) VALUES ('Q-8801', 'TST-Bump')`
+    );
+
+    const res = await request(app)
+      .get('/api/qb/quotes/next-number')
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    const num = parseInt(res.body.next_number.replace('Q-', ''), 10);
+    expect(num).toBeGreaterThanOrEqual(8802);
+
+    await pool.query(`DELETE FROM quotes WHERE quote_number = 'Q-8801'`);
+  });
+
+  it('increments past a VQ- number that is higher than any Q-', async () => {
+    await pool.query(
+      `INSERT INTO quotes (quote_number, client_name) VALUES ('VQ-8900', 'TST-Bump')`
+    );
+
+    const res = await request(app)
+      .get('/api/qb/quotes/next-number')
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    const num = parseInt(res.body.next_number.replace('Q-', ''), 10);
+    expect(num).toBeGreaterThanOrEqual(8901);
+
+    await pool.query(`DELETE FROM quotes WHERE quote_number = 'VQ-8900'`);
+  });
+
+  it('returns 401 without a token', async () => {
+    const res = await request(app).get('/api/qb/quotes/next-number');
+    expect(res.status).toBe(401);
+  });
+});
+
+// ── Subtrades ──────────────────────────────────────────────────────────────
+
+describe('Subtrades', () => {
+  let qbId, unitId;
+
+  const BASE_BODY = () => ({
+    quote_number:  'TST-QB-SUBTRADE',
+    date:          '2024-06-01',
+    project:       'Subtrade Test',
+    margin:        0.15,
+    waste_pct:     0.10,
+    status:        'draft',
+    units: [{
+      unit_number:        1,
+      quantity:           2,
+      admin_hours:        0,
+      cnc_hours:          0,
+      edgebander_hours:   0,
+      assembly_hours:     0,
+      delivery_hours:     0,
+      installation_hours: 0,
+      subtrade_margin:    0.20,
+      subtrades: [{
+        type: '2pac_flat', mode: 'fixed', cost: 500, quantity: 0, rate: 0,
+      }],
+      lines: [],
+    }],
+  });
+
+  beforeAll(async () => {
+    const res = await request(app)
+      .post('/api/qb/quotes')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send(BASE_BODY());
+    qbId   = res.body.id;
+    unitId = res.body.units[0].id;
+  });
+
+  afterAll(async () => {
+    if (qbId) await pool.query(`DELETE FROM qb_quote_headers WHERE id = $1`, [qbId]);
+  });
+
+  it('POST with fixed-mode subtrade saves it and GET returns it', async () => {
+    const res = await request(app)
+      .get(`/api/qb/quotes/${qbId}`)
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(res.status).toBe(200);
+    const subtrades = res.body.units[0].subtrades;
+    expect(Array.isArray(subtrades)).toBe(true);
+    const st = subtrades.find(s => s.type === '2pac_flat');
+    expect(st).toBeDefined();
+    expect(st.mode).toBe('fixed');
+    expect(Number(st.cost)).toBe(500);
+  });
+
+  it('PUT updates subtrade to qty_rate mode and persists correctly', async () => {
+    const res = await request(app)
+      .put(`/api/qb/quotes/${qbId}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        ...BASE_BODY(),
+        units: [{
+          id:             unitId,
+          unit_number:    1,
+          quantity:       2,
+          admin_hours:    0, cnc_hours: 0, edgebander_hours: 0,
+          assembly_hours: 0, delivery_hours: 0, installation_hours: 0,
+          subtrade_margin: 0.20,
+          subtrades: [{
+            type: 'stone', mode: 'qty_rate', cost: 0, quantity: 5, rate: 80,
+          }],
+          lines: [],
+        }],
+      });
+
+    expect(res.status).toBe(200);
+    const st = res.body.units[0].subtrades.find(s => s.type === 'stone');
+    expect(st).toBeDefined();
+    expect(st.mode).toBe('qty_rate');
+    expect(Number(st.quantity)).toBe(5);
+    expect(Number(st.rate)).toBe(80);
+  });
+
+  it('zero-value subtrade is not persisted in the database', async () => {
+    await request(app)
+      .put(`/api/qb/quotes/${qbId}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        ...BASE_BODY(),
+        units: [{
+          id:             unitId,
+          unit_number:    1,
+          quantity:       2,
+          admin_hours:    0, cnc_hours: 0, edgebander_hours: 0,
+          assembly_hours: 0, delivery_hours: 0, installation_hours: 0,
+          subtrade_margin: 0.20,
+          subtrades: [{ type: 'glass', mode: 'fixed', cost: 0, quantity: 0, rate: 0 }],
+          lines: [],
+        }],
+      });
+
+    const { rows } = await pool.query(
+      `SELECT * FROM qb_unit_subtrades WHERE unit_id = $1 AND type = 'glass'`,
+      [unitId]
+    );
+    expect(rows).toHaveLength(0);
+  });
+
+  it('subtrade_margin is applied correctly in the unit sell calculation', async () => {
+    // cost=500, unit.quantity=2, margin=20% → sell = 500 * 1.20 * 2 = 1200
+    await request(app)
+      .put(`/api/qb/quotes/${qbId}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        ...BASE_BODY(),
+        units: [{
+          id:             unitId,
+          unit_number:    1,
+          quantity:       2,
+          admin_hours:    0, cnc_hours: 0, edgebander_hours: 0,
+          assembly_hours: 0, delivery_hours: 0, installation_hours: 0,
+          subtrade_margin: 0.20,
+          subtrades: [{ type: '2pac_flat', mode: 'fixed', cost: 500, quantity: 0, rate: 0 }],
+          lines: [],
+        }],
+      });
+
+    const budget = await request(app)
+      .get(`/api/qb/quotes/${qbId}/budget`)
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(budget.status).toBe(200);
+    // total_cost = 500 * 2 = 1000; total_sell = 500 * 1.20 * 2 = 1200
+    const st = budget.body.subtrades.find(s => s.type === '2pac_flat');
+    expect(st).toBeDefined();
+    expect(Number(st.total_cost)).toBeCloseTo(1000, 1);
+    expect(Number(st.total_sell)).toBeCloseTo(1200, 1);
+  });
+
+  it('returns 401 without a token on GET /:id', async () => {
+    const res = await request(app).get(`/api/qb/quotes/${qbId}`);
+    expect(res.status).toBe(401);
+  });
+});
+
+// ── Status sync — QB accepts/declines syncs to JT quote ───────────────────
+
+describe('PATCH /api/qb/quotes/:id/status (status sync)', () => {
+  let qbId, linkedJtId;
+
+  beforeAll(async () => {
+    const res = await request(app)
+      .post('/api/qb/quotes')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        quote_number:  'TST-QB-STATUS',
+        date:          '2024-06-01',
+        project:       'Status Sync Test',
+        margin:        0.15,
+        waste_pct:     0.10,
+        status:        'draft',
+        units: [],
+      });
+    qbId       = res.body.id;
+    linkedJtId = res.body.quote_id;
+  });
+
+  afterAll(async () => {
+    if (qbId) await pool.query(`DELETE FROM qb_quote_headers WHERE id = $1`, [qbId]);
+  });
+
+  it('accepting a QB quote syncs the linked JT quote to accepted', async () => {
+    const res = await request(app)
+      .patch(`/api/qb/quotes/${qbId}/status`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ status: 'accepted' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('accepted');
+
+    const { rows: [jt] } = await pool.query(
+      'SELECT status FROM quotes WHERE id = $1', [linkedJtId]
+    );
+    expect(jt.status).toBe('accepted');
+  });
+
+  it('sending syncs JT quote to review status', async () => {
+    const res = await request(app)
+      .patch(`/api/qb/quotes/${qbId}/status`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ status: 'sent' });
+
+    expect(res.status).toBe(200);
+
+    const { rows: [jt] } = await pool.query(
+      'SELECT status FROM quotes WHERE id = $1', [linkedJtId]
+    );
+    expect(jt.status).toBe('review');
+  });
+
+  it('declining syncs JT quote to declined status', async () => {
+    await request(app)
+      .patch(`/api/qb/quotes/${qbId}/status`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ status: 'declined' });
+
+    const { rows: [jt] } = await pool.query(
+      'SELECT status FROM quotes WHERE id = $1', [linkedJtId]
+    );
+    expect(jt.status).toBe('declined');
+  });
+
+  it('returns 401 without a token', async () => {
+    const res = await request(app)
+      .patch(`/api/qb/quotes/${qbId}/status`)
+      .send({ status: 'draft' });
+    expect(res.status).toBe(401);
+  });
+});
+
+// ── Budget Quantities ──────────────────────────────────────────────────────
+
+describe('GET /api/qb/quotes/:id/budget', () => {
+  let qbId, unitId;
+
+  // Quote: 1 unit, qty=1, admin_hours=2 @ $100, 1 material line price=$40 qty=3
+  // margin=0.10, waste_pct=0.05
+  // mat_raw = 40*3 = 120; waste = 6; mat+waste = 126
+  // labour = 2*1*100 = 200; costs_total = 326; margin_amt = 32.6
+  // subtotal = 358.6; gst = 35.86; total = 394.46
+  const BODY = () => ({
+    quote_number:  'TST-QB-BUDGET',
+    date:          '2024-06-01',
+    project:       'Budget Test',
+    margin:        0.10,
+    waste_pct:     0.05,
+    status:        'draft',
+    units: [{
+      unit_number:        1,
+      quantity:           1,
+      admin_hours:        2,
+      cnc_hours:          0,
+      edgebander_hours:   0,
+      assembly_hours:     0,
+      delivery_hours:     0,
+      installation_hours: 0,
+      subtrade_margin:    0,
+      subtrades:          [],
+      lines: [{
+        price_list_id:   plItemId,
+        category:        'Materials',
+        product:         'TST-Substrate',
+        price:           40,
+        unit_of_measure: 'sheet',
+        quantity:        3,
+      }],
+    }],
+  });
+
+  beforeAll(async () => {
+    // Ensure admin rate is 100 for predictable labour cost
+    await pool.query(`UPDATE labour_rates SET hourly_rate = 100 WHERE type = 'admin'`);
+    const res = await request(app)
+      .post('/api/qb/quotes')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send(BODY());
+    qbId   = res.body.id;
+    unitId = res.body.units[0].id;
+  });
+
+  afterAll(async () => {
+    if (qbId) await pool.query(`DELETE FROM qb_quote_headers WHERE id = $1`, [qbId]);
+    await pool.query(`UPDATE labour_rates SET hourly_rate = 100 WHERE type = 'admin'`);
+  });
+
+  it('returns correct aggregated materials totals', async () => {
+    const res = await request(app)
+      .get(`/api/qb/quotes/${qbId}/budget`)
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(res.status).toBe(200);
+    const mat = res.body.lines.find(l => l.category === 'Materials');
+    expect(mat).toBeDefined();
+    expect(Number(mat.total_qty)).toBeCloseTo(3, 2);          // 3 * unit_qty 1
+    expect(Number(mat.total_cost_allowed)).toBeCloseTo(120, 2); // 40 * 3
+
+    expect(Number(res.body.totals.materials_raw)).toBeCloseTo(120, 2);
+    expect(Number(res.body.totals.waste_amount)).toBeCloseTo(6, 2);  // 120 * 0.05
+    expect(Number(res.body.totals.materials)).toBeCloseTo(126, 2);
+  });
+
+  it('returns correct labour totals', async () => {
+    const res = await request(app)
+      .get(`/api/qb/quotes/${qbId}/budget`)
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(Number(res.body.labour.admin_hours)).toBeCloseTo(2, 2); // 2h * unit_qty 1
+    expect(Number(res.body.labour.admin_cost)).toBeCloseTo(200, 2); // 2 * 1 * $100
+    expect(Number(res.body.totals.labour)).toBeCloseTo(200, 2);
+  });
+
+  it('returns correct overall totals including margin, GST', async () => {
+    const res = await request(app)
+      .get(`/api/qb/quotes/${qbId}/budget`)
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    const t = res.body.totals;
+    expect(Number(t.costs_total)).toBeCloseTo(326, 1);    // 126 + 200
+    expect(Number(t.margin_amount)).toBeCloseTo(32.6, 1); // 326 * 0.10
+    expect(Number(t.subtotal)).toBeCloseTo(358.6, 1);
+    expect(Number(t.gst)).toBeCloseTo(35.86, 1);
+    expect(Number(t.total)).toBeCloseTo(394.46, 1);
+  });
+
+  it('includes subtrades in totals when present', async () => {
+    // Add a fixed subtrade: cost=300, margin=25%, unit.qty=1
+    // total_cost = 300; total_sell = 300 * 1.25 = 375
+    const lineRes = await request(app)
+      .get(`/api/qb/quotes/${qbId}`)
+      .set('Authorization', `Bearer ${adminToken}`);
+    const lineId = lineRes.body.units[0].lines[0].id;
+
+    await request(app)
+      .put(`/api/qb/quotes/${qbId}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        ...BODY(),
+        units: [{
+          id:             unitId,
+          unit_number:    1,
+          quantity:       1,
+          admin_hours:    2,
+          cnc_hours:      0, edgebander_hours: 0, assembly_hours: 0,
+          delivery_hours: 0, installation_hours: 0,
+          subtrade_margin: 0.25,
+          subtrades: [{ type: 'stone', mode: 'fixed', cost: 300, quantity: 0, rate: 0 }],
+          lines: [{ id: lineId, price_list_id: plItemId, category: 'Materials',
+                    product: 'TST-Substrate', price: 40, quantity: 3 }],
+        }],
+      });
+
+    const res = await request(app)
+      .get(`/api/qb/quotes/${qbId}/budget`)
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(res.status).toBe(200);
+    const st = res.body.subtrades.find(s => s.type === 'stone');
+    expect(st).toBeDefined();
+    expect(Number(st.total_cost)).toBeCloseTo(300, 1);
+    expect(Number(st.total_sell)).toBeCloseTo(375, 1);
+    // subtotal should include subtrades_sell
+    expect(Number(res.body.totals.subtrades_sell)).toBeCloseTo(375, 1);
+    expect(Number(res.body.totals.subtotal)).toBeCloseTo(358.6 + 375, 1);
+  });
+
+  it('returns all-zero totals for a quote with no lines or subtrades', async () => {
+    const emptyRes = await request(app)
+      .post('/api/qb/quotes')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        quote_number: 'TST-QB-EMPTY',
+        date:         '2024-06-01',
+        margin:       0.15,
+        waste_pct:    0.10,
+        status:       'draft',
+        units: [{ unit_number: 1, quantity: 1, admin_hours: 0, cnc_hours: 0,
+                  edgebander_hours: 0, assembly_hours: 0, delivery_hours: 0,
+                  installation_hours: 0, subtrade_margin: 0, subtrades: [], lines: [] }],
+      });
+
+    const res = await request(app)
+      .get(`/api/qb/quotes/${emptyRes.body.id}/budget`)
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.lines).toHaveLength(0);
+    expect(Number(res.body.totals.materials_raw)).toBe(0);
+    expect(Number(res.body.totals.labour)).toBe(0);
+    expect(Number(res.body.totals.subtotal)).toBe(0);
+
+    await pool.query(`DELETE FROM qb_quote_headers WHERE id = $1`, [emptyRes.body.id]);
+  });
+
+  it('returns 404 for an unknown quote id', async () => {
+    const res = await request(app)
+      .get('/api/qb/quotes/00000000-0000-0000-0000-000000000000/budget')
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(res.status).toBe(404);
+  });
+
+  it('returns 401 without a token', async () => {
+    const res = await request(app).get(`/api/qb/quotes/${qbId}/budget`);
+    expect(res.status).toBe(401);
+  });
+});
+
+// ── PDF generation ────────────────────────────────────────────────────────
+
+describe('GET /api/qb/quotes/:id/pdf', () => {
+  let qbId;
+
+  beforeAll(async () => {
+    const res = await request(app)
+      .post('/api/qb/quotes')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        quote_number:  'TST-QB-PDF',
+        date:          '2024-06-01',
+        project:       'PDF Smoke Test',
+        prepared_by:   'Tester',
+        margin:        0.15,
+        waste_pct:     0.10,
+        status:        'draft',
+        units: [{
+          unit_number:        1,
+          description:        'Test cabinet',
+          quantity:           1,
+          admin_hours:        1,
+          cnc_hours:          0,
+          edgebander_hours:   0,
+          assembly_hours:     0,
+          delivery_hours:     0,
+          installation_hours: 0,
+          subtrade_margin:    0,
+          subtrades:          [],
+          lines: [{
+            price_list_id:   plItemId,
+            category:        'Materials',
+            product:         'TST-Substrate',
+            price:           40,
+            unit_of_measure: 'sheet',
+            quantity:        2,
+          }],
+        }],
+      });
+    qbId = res.body.id;
+  });
+
+  afterAll(async () => {
+    if (qbId) await pool.query(`DELETE FROM qb_quote_headers WHERE id = $1`, [qbId]);
+  });
+
+  it('returns a non-empty PDF buffer with correct content-type', async () => {
+    const res = await request(app)
+      .get(`/api/qb/quotes/${qbId}/pdf`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .buffer(true)
+      .parse((res, callback) => {
+        const chunks = [];
+        res.on('data', c => chunks.push(c));
+        res.on('end', () => callback(null, Buffer.concat(chunks)));
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/application\/pdf/);
+    expect(res.body.length).toBeGreaterThan(1000); // any real PDF is > 1 KB
+  }, 30000);
+
+  it('returns 401 without a token', async () => {
+    const res = await request(app).get(`/api/qb/quotes/${qbId}/pdf`);
+    expect(res.status).toBe(401);
   });
 });

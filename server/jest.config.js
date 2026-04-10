@@ -6,4 +6,6 @@ module.exports = {
   testTimeout: 15000,
   verbose: true,
   forceExit: true,
+  // Integration tests share a single test DB — must run serially
+  maxWorkers: 1,
 };
