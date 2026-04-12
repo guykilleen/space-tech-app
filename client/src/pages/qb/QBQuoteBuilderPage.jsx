@@ -726,7 +726,7 @@ export default function QBQuoteBuilderPage() {
                 <option value="draft">Draft</option>
                 <option value="sent">Sent</option>
                 <option value="accepted">Accepted</option>
-                <option value="declined">Declined</option>
+                <option value="locked">Locked</option>
               </select>
             </div>
             <div className="field">
