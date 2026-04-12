@@ -95,7 +95,7 @@ label {
 .std-table th {
   padding: 13px 16px;
   text-align: left;
-  font-size: .58rem;
+  font-size: .76rem;
   letter-spacing: .2em;
   font-variant: small-caps;
   font-weight: 400;
@@ -141,7 +141,7 @@ label {
   padding: 16px 20px; background: var(--sawdust); border-bottom: 1px solid var(--oak-light);
   display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
 }
-.ttitle { font-size: .62rem; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); }
+.ttitle { font-size: .74rem; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); }
 .search-box {
   background: var(--white); border: 1px solid var(--oak-light); border-radius: 2px;
   padding: 7px 12px; font-family: 'DM Mono', monospace; font-size: .75rem; color: var(--ink);
@@ -155,7 +155,7 @@ label {
   margin-bottom: 32px; padding-bottom: 16px;
   border-bottom: 1px solid var(--oak-light); flex-wrap: wrap;
 }
-.section-title { font-family: 'DM Serif Display', serif; font-size: 1.9rem; color: var(--mid); letter-spacing: -.5px; }
+.section-title { font-family: 'DM Serif Display', serif; font-size: 2.3rem; color: var(--mid); letter-spacing: -.5px; }
 .section-tag   { font-size: .62rem; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); padding: 3px 10px; border: 1px solid var(--oak-light); border-radius: 2px; }
 
 /* ── Form panel ── */
@@ -164,7 +164,7 @@ label {
   padding: 36px; margin-bottom: 36px; box-shadow: var(--shadow-sm); position: relative;
 }
 .form-panel::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: var(--oak); border-radius: 4px 0 0 4px; }
-.form-panel-title { font-size: .7rem; letter-spacing: .22em; text-transform: uppercase; color: var(--oak-dark); margin-bottom: 24px; font-weight: 500; }
+.form-panel-title { font-size: .84rem; letter-spacing: .22em; text-transform: uppercase; color: var(--oak-dark); margin-bottom: 24px; font-weight: 500; }
 
 .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 18px 24px; }
 .form-grid.cols-4 { grid-template-columns: repeat(4, 1fr); }
@@ -208,7 +208,7 @@ label {
 
   /* Page chrome */
   .section-header { margin-bottom: 20px; padding-bottom: 12px; gap: 10px; }
-  .section-title { font-size: 1.45rem; }
+  .section-title { font-size: 1.75rem; }
 
   /* Forms */
   .form-panel { padding: 20px 16px; margin-bottom: 20px; }
@@ -229,7 +229,7 @@ label {
   }
 
   /* Tables */
-  .std-table th { padding: 10px 12px; font-size: .55rem; }
+  .std-table th { padding: 10px 12px; font-size: .63rem; }
   .std-table td { padding: 11px 12px; font-size: .8rem; }
 
   /* Toolbar */

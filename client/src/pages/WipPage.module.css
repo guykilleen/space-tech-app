@@ -8,7 +8,7 @@
 
 .wipTable { width: 100%; border-collapse: collapse; font-size: .75rem; }
 .wipTable thead { background: var(--dark); color: var(--oak-light); }
-.wipTable th { padding: 12px 10px; text-align: left; font-size: .56rem; letter-spacing: .18em; text-transform: uppercase; font-weight: 400; white-space: nowrap; }
+.wipTable th { padding: 12px 10px; text-align: left; font-size: .65rem; letter-spacing: .18em; text-transform: uppercase; font-weight: 400; white-space: nowrap; }
 .wipTable td { padding: 10px 10px; border-bottom: 1px solid var(--sawdust); color: var(--ink); vertical-align: middle; white-space: nowrap; }
 .wipTable tr:last-child td { border-bottom: none; }
 .wipTable tr:hover td { background: var(--grain); }

@@ -25,7 +25,7 @@
 }
 .builderTitle {
   font-family: 'DM Serif Display', serif;
-  font-size: 1.9rem;
+  font-size: 2.3rem;
   color: var(--mid);
   letter-spacing: -.5px;
 }
@@ -126,7 +126,7 @@
 .linesTable th {
   padding: 9px 12px;
   text-align: left;
-  font-size: .58rem;
+  font-size: .67rem;
   letter-spacing: .18em;
   text-transform: uppercase;
   font-weight: 400;
@@ -210,7 +210,7 @@
   background: var(--sawdust);
 }
 .labourTitle {
-  font-size: .58rem;
+  font-size: .7rem;
   letter-spacing: .2em;
   text-transform: uppercase;
   color: var(--muted);
@@ -257,7 +257,7 @@
   background: var(--white);
 }
 .subtradesTitle {
-  font-size: .58rem;
+  font-size: .7rem;
   letter-spacing: .2em;
   text-transform: uppercase;
   color: var(--muted);
@@ -469,7 +469,7 @@
   margin-bottom: 48px;
 }
 .budgetSummaryTitle {
-  font-size: .62rem;
+  font-size: .74rem;
   letter-spacing: .25em;
   text-transform: uppercase;
   color: var(--muted);
@@ -660,7 +660,7 @@
 
 .rateDiffTitle {
   font-family: 'DM Serif Display', serif;
-  font-size: 1.2rem;
+  font-size: 1.45rem;
   color: var(--mid);
   margin-bottom: 20px;
   padding-bottom: 12px;
@@ -670,7 +670,7 @@
 .rateDiffSection { margin-bottom: 18px; }
 
 .rateDiffSectionTitle {
-  font-size: .58rem;
+  font-size: .7rem;
   letter-spacing: .2em;
   text-transform: uppercase;
   color: var(--muted);
@@ -726,7 +726,7 @@
     padding-bottom: 14px;
     gap: 14px;
   }
-  .builderTitle { font-size: 1.4rem; }
+  .builderTitle { font-size: 1.7rem; }
   .builderActions { width: 100%; justify-content: flex-start; flex-wrap: wrap; }
   .builderActions .btn, .builderActions a.btn {
     flex: 1;
