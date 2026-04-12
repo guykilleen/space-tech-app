@@ -199,8 +199,69 @@ label {
 /* ── Toast override ── */
 .Toastify__toast { font-family: 'DM Mono', monospace; font-size: .78rem; }
 
+/* ── Mobile utility classes (apply at all sizes, toggled by media query) ── */
+.mobile-only  { display: none; }   /* hidden on desktop, shown on mobile */
+.desktop-only { }                  /* visible on desktop (no-op), hidden on mobile */
+
+/* ── Mobile card list (Quote Register / QB Quotes) ── */
+.mobile-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+}
+.mobile-card {
+  background: var(--white);
+  border: 1px solid var(--oak-light);
+  border-radius: 4px;
+  padding: 16px;
+  box-shadow: var(--shadow-sm);
+  position: relative;
+}
+.mobile-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.mobile-card-number { font-size: 1rem; font-weight: 700; color: var(--mid); }
+.mobile-card-client { font-size: .9rem; color: var(--ink); font-weight: 500; margin-bottom: 2px; }
+.mobile-card-project { font-size: .8rem; color: var(--muted); margin-bottom: 10px; }
+.mobile-card-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.mobile-card-value { font-size: .95rem; font-weight: 600; color: var(--mid); }
+.mobile-card-date  { font-size: .75rem; color: var(--muted); }
+.mobile-card-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.mobile-card-actions .act-btn { flex: 1; min-width: 90px; text-align: center; }
+
+/* Edit panel inside mobile card */
+.mobile-edit-panel {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--oak-light);
+}
+.mobile-edit-panel .edit-row-inner { flex-direction: column; }
+.mobile-edit-panel .edit-field { min-width: unset; width: 100%; }
+.mobile-edit-panel .edit-actions { flex-wrap: wrap; margin-top: 14px; }
+
+/* ── Fixed bottom button (FAB) ── */
+.mobile-fab-wrap { display: none; }
+
 /* ── Mobile ──────────────────────────────────────────────── */
-@media (max-width: 640px) {
+@media (max-width: 768px) {
+
+  /* Show/hide utilities */
+  .mobile-only  { display: block; }
+  .desktop-only { display: none !important; }
 
   /* Prevent iOS input zoom — must be >= 16px */
   input, select, textarea { font-size: 16px !important; }
@@ -209,6 +270,9 @@ label {
   /* Page chrome */
   .section-header { margin-bottom: 20px; padding-bottom: 12px; gap: 10px; }
   .section-title { font-size: 1.75rem; }
+
+  /* Extra bottom padding when fixed bar present */
+  .has-mobile-fab { padding-bottom: 80px !important; }
 
   /* Forms */
   .form-panel { padding: 20px 16px; margin-bottom: 20px; }
@@ -221,23 +285,53 @@ label {
   .smbtn { padding: 12px 18px; min-height: 44px; }
   .act-btn {
     padding: 10px 14px;
-    font-size: .65rem;
+    font-size: .7rem;
     min-height: 44px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
   }
 
-  /* Tables */
+  /* Tables — hidden on mobile (replaced by cards) */
   .std-table th { padding: 10px 12px; font-size: .63rem; }
   .std-table td { padding: 11px 12px; font-size: .8rem; }
 
-  /* Toolbar */
+  /* Toolbar — stack on mobile */
   .table-toolbar { flex-direction: column; align-items: stretch; gap: 10px; padding: 14px; }
-  .search-box { width: 100%; }
+  .ttitle { display: none; }
+  .search-box { width: 100%; font-size: 16px !important; }
 
   /* Edit rows — stack on mobile */
   .edit-row-inner { flex-direction: column; }
   .edit-field { min-width: unset; width: 100%; }
   .edit-actions { flex-wrap: wrap; }
+
+  /* Fixed FAB */
+  .mobile-fab-wrap {
+    display: block;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    padding: 12px 16px;
+    background: var(--white);
+    border-top: 2px solid var(--oak-light);
+    z-index: 80;
+    box-shadow: 0 -2px 12px rgba(0,0,0,0.12);
+  }
+  .mobile-fab {
+    display: block;
+    width: 100%;
+    background: var(--oak);
+    color: var(--white);
+    border: none;
+    border-radius: 2px;
+    font-family: 'DM Mono', monospace;
+    font-size: .78rem;
+    letter-spacing: .15em;
+    text-transform: uppercase;
+    padding: 0;
+    height: 50px;
+    cursor: pointer;
+    font-weight: 500;
+  }
+  .mobile-fab:active { background: var(--oak-dark); }
 }

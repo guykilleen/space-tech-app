@@ -96,14 +96,14 @@ export default function QuotesPage() {
   }
 
   return (
-    <div className={styles.page}>
+    <div className={`${styles.page} has-mobile-fab`}>
 
       {/* ── Quote Register ── */}
       <div className="section-header">
         <h1 className="section-title">Quote Register</h1>
         <span className="section-tag" id="q-count">{qCount} Entr{qCount === 1 ? 'y' : 'ies'}</span>
         {isAdminOrMgr && (
-          <button className="btn btn-primary" style={{ marginLeft: 'auto' }} onClick={() => navigate('/qb/quotes/new')}>
+          <button className="btn btn-primary desktop-only" style={{ marginLeft: 'auto' }} onClick={() => navigate('/qb/quotes/new')}>
             + New Quote
           </button>
         )}
@@ -114,7 +114,9 @@ export default function QuotesPage() {
           <span className="ttitle">All Quotes</span>
           <input className="search-box" type="text" placeholder="Search quotes…" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-        <div style={{ overflowX: 'auto' }}>
+
+        {/* ── Desktop table ── */}
+        <div className="desktop-only" style={{ overflowX: 'auto' }}>
           <table className="std-table">
             <thead>
               <tr>
@@ -213,7 +215,100 @@ export default function QuotesPage() {
             </tbody>
           </table>
         </div>
+
+        {/* ── Mobile card list ── */}
+        <div className="mobile-only">
+          {sorted.length ? (
+            <div className="mobile-card-list">
+              {sorted.map(q => (
+                <div key={q.id} className="mobile-card">
+                  <div className="mobile-card-top">
+                    <span className="mobile-card-number">{q.quote_number || '—'}</span>
+                    {badge(q.status)}
+                  </div>
+                  <div className="mobile-card-client">{q.client_name || '—'}</div>
+                  <div className="mobile-card-project">{q.project || 'No project name'}</div>
+                  <div className="mobile-card-meta">
+                    <span className="mobile-card-value">{fmtMoney(q.value)}</span>
+                    <span className="mobile-card-date">{fmtDate(q.date)}</span>
+                  </div>
+                  {isAdminOrMgr && (
+                    <div className="mobile-card-actions">
+                      <button className="act-btn edit" onClick={() => editId === q.id ? closeEdit() : openEdit(q)}>
+                        {editId === q.id ? 'Close' : 'Edit'}
+                      </button>
+                      <button className="act-btn" onClick={() => openInBuilder(q.id)} disabled={buildingId === q.id}>
+                        {buildingId === q.id ? '…' : 'Open Quote'}
+                      </button>
+                    </div>
+                  )}
+                  {editId === q.id && (
+                    <div className="mobile-edit-panel">
+                      <div style={{ fontSize:'.6rem', letterSpacing:'.2em', textTransform:'uppercase', color:'var(--oak-dark)', marginBottom:12 }}>
+                        Editing {q.quote_number || ''}
+                      </div>
+                      <div className="edit-row-inner">
+                        <div className="edit-field">
+                          <label>Quote Number</label>
+                          <input value={editData.quote_number} onChange={e => setEditData(d=>({...d,quote_number:e.target.value}))} />
+                        </div>
+                        <div className="edit-field">
+                          <label>Preparer's Initials</label>
+                          <input value={editData.initials} onChange={e => setEditData(d=>({...d,initials:e.target.value}))} maxLength={6} />
+                        </div>
+                        <div className="edit-field">
+                          <label>Date</label>
+                          <input type="date" value={editData.date} onChange={e => setEditData(d=>({...d,date:e.target.value}))} />
+                        </div>
+                        <div className="edit-field">
+                          <label>Value ($ excl. GST)</label>
+                          <input type="number" value={editData.value} onChange={e => setEditData(d=>({...d,value:e.target.value}))} step="0.01" min="0" />
+                        </div>
+                        <div className="edit-field">
+                          <label>Client Name</label>
+                          <input value={editData.client_name} onChange={e => setEditData(d=>({...d,client_name:e.target.value}))} />
+                        </div>
+                        <div className="edit-field">
+                          <label>Project Name</label>
+                          <input value={editData.project} onChange={e => setEditData(d=>({...d,project:e.target.value}))} />
+                        </div>
+                        <div className="edit-field">
+                          <label>Status</label>
+                          <select value={editData.status} onChange={e => setEditData(d=>({...d,status:e.target.value}))}>
+                            {STATUSES.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase()+s.slice(1).replace('_',' ')}</option>)}
+                          </select>
+                        </div>
+                        <div className="edit-field">
+                          <label>Acceptance Details</label>
+                          <input value={editData.accept_details} onChange={e => setEditData(d=>({...d,accept_details:e.target.value}))} placeholder="PO number, verbal, email ref…" />
+                        </div>
+                        <div className="edit-field">
+                          <label>Acceptance Date</label>
+                          <input type="date" value={editData.accept_date} onChange={e => setEditData(d=>({...d,accept_date:e.target.value}))} />
+                        </div>
+                      </div>
+                      <div className="edit-actions">
+                        <button className="smbtn smbtn-save" onClick={() => handleSaveEdit(q.id)}>Save Changes</button>
+                        <button className="smbtn smbtn-cancel" onClick={closeEdit}>Cancel</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="empty-state"><div className="empty-icon">📋</div><div className="empty-text">No quotes found</div></div>
+          )}
+        </div>
+
       </div>
+
+      {/* ── Mobile FAB — New Quote ── */}
+      {isAdminOrMgr && (
+        <div className="mobile-fab-wrap">
+          <button className="mobile-fab" onClick={() => navigate('/qb/quotes/new')}>+ New Quote</button>
+        </div>
+      )}
 
       {jobModal && (
         <JobCreateModal

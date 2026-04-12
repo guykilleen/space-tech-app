@@ -713,29 +713,115 @@
   border-top: 1px solid var(--oak-light);
 }
 
+/* ── Unit accordion — collapse/expand state (mobile only) ── */
+/* unitToggleBtn: shown on mobile only, tap to collapse/expand a unit */
+.unitToggleBtn { display: none; }
+
+/* unitHeaderFields: transparent wrapper on desktop so flex layout unchanged */
+.unitHeaderFields { display: contents; }
+
+/* unitCardBody: wraps everything below the card header */
+.unitCardBody { }
+
+/* headerToggle: shown on mobile to collapse/expand Quote Details panel */
+.headerToggle { display: none; }
+
+/* Mobile Save bar — fixed to bottom of screen */
+.mobileSaveBar { display: none; }
+
 /* ── Mobile ──────────────────────────────────────────────── */
-@media (max-width: 640px) {
+@media (max-width: 768px) {
 
-  /* Builder page */
-  .builderPage { padding: 20px 14px 48px; }
+  /* Builder page — extra bottom padding for fixed save bar */
+  .builderPage { padding: 20px 14px 90px; }
 
+  /* Sticky builder header */
   .builderHeader {
+    position: sticky;
+    top: 106px;
+    z-index: 50;
+    background: var(--grain);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+    margin-left: -14px;
+    margin-right: -14px;
+    padding: 12px 14px;
+    margin-bottom: 16px;
     flex-direction: column;
     align-items: flex-start;
-    margin-bottom: 20px;
-    padding-bottom: 14px;
-    gap: 14px;
+    gap: 10px;
   }
-  .builderTitle { font-size: 1.7rem; }
-  .builderActions { width: 100%; justify-content: flex-start; flex-wrap: wrap; }
+  .builderTitle { font-size: 1.5rem; }
+  .builderActions {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
   .builderActions .btn, .builderActions a.btn {
     flex: 1;
+    min-width: 100px;
     text-align: center;
     min-height: 44px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    font-size: .65rem;
+    padding: 10px 12px;
   }
+
+  /* Collapsible Quote Details header */
+  .headerToggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: none;
+    border: 1px solid var(--oak-light);
+    border-radius: 2px;
+    color: var(--oak-dark);
+    font-family: 'DM Mono', monospace;
+    font-size: .6rem;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    padding: 6px 12px;
+    cursor: pointer;
+    min-height: 36px;
+    white-space: nowrap;
+  }
+  .headerBodyHidden { display: none; }
+
+  /* Unit accordion toggle button */
+  .unitToggleBtn {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 10px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: 'DM Mono', monospace;
+    font-size: .78rem;
+    color: var(--oak-dark);
+    padding: 2px 0;
+    text-align: left;
+    min-height: 44px;
+  }
+  .unitToggleChevron {
+    font-size: 0.7rem;
+    flex-shrink: 0;
+    width: 16px;
+    text-align: center;
+  }
+  .unitToggleLabel {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: .78rem;
+  }
+
+  /* When unit collapsed: hide header fields and card body */
+  .unitHeaderFields.unitHeaderHidden { display: none; }
+  .unitCardBodyHidden { display: none; }
 
   /* Unit card */
   .unitCard { margin-bottom: 16px; }
@@ -758,23 +844,39 @@
   .linesTable th { padding: 8px 10px; }
   .linesTable td { padding: 6px 6px; }
 
-  /* Labour section */
+  /* Labour section — 2-col grid */
   .labourSection { padding: 14px; }
-  .labourRow { gap: 10px; }
-  .labourField { flex: 1 1 calc(50% - 5px); min-width: 0; }
+  .labourRow {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px 10px;
+  }
+  .labourField { flex: unset; min-width: 0; }
+  .labourField input { min-height: 44px; }
 
   /* Subtrades */
   .subtradesSection { padding: 12px 14px; }
-  .subtradeRow { grid-template-columns: 110px auto 1fr 80px; gap: 6px 8px; }
-  .subtradeInputs input { width: 80px; }
-  .subtradesFooter { gap: 12px; }
-  .subtradesTotals { margin-left: 0; }
+  .subtradeRow {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+    gap: 6px;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(200,169,110,.15);
+  }
+  .subtradeName { font-size: .82rem; font-weight: 500; }
+  .subtradeInputs input { width: 100%; }
+  .subtradeQtyInput { width: 100% !important; }
+  .subtradeTotal { text-align: left; font-size: .85rem; }
+  .subtradesFooter { flex-direction: column; gap: 12px; }
+  .subtradesTotals { margin-left: 0; flex-direction: column; gap: 4px; }
+  .subtradeModeBtn { min-height: 36px; padding: 6px 12px; }
 
   /* Unit footer */
   .unitFooter { flex-direction: column; align-items: flex-start; gap: 10px; padding: 12px 14px; }
-  .unitTotals { flex-direction: column; gap: 6px; }
+  .unitTotals { flex-direction: column; gap: 6px; font-size: .75rem; }
   .addLineBtnWrap { padding: 8px 10px 0; }
   .addLineBtn { width: 100%; text-align: center; padding: 12px; min-height: 44px; }
+  .refreshRatesBtn { min-height: 44px; width: 100%; }
 
   /* Add unit */
   .addUnitBtn { padding: 18px; min-height: 56px; }
@@ -784,4 +886,27 @@
 
   /* Budget summary */
   .budgetSummary { min-width: unset; width: 100%; padding: 20px 16px; margin-bottom: 32px; }
+
+  /* Fixed save bar at bottom of builder */
+  .mobileSaveBar {
+    display: flex;
+    gap: 8px;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    padding: 12px 16px;
+    background: var(--white);
+    border-top: 2px solid var(--oak-light);
+    z-index: 80;
+    box-shadow: 0 -2px 12px rgba(0,0,0,0.12);
+  }
+  .mobileSaveBar .btn { flex: 1; min-height: 50px; }
+
+  /* Rate diff dialog — full screen on mobile */
+  .rateDiffDialog {
+    min-width: unset;
+    width: calc(100vw - 32px);
+    padding: 24px 20px;
+    max-height: 85vh;
+    overflow-y: auto;
+  }
 }

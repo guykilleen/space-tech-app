@@ -49,11 +49,11 @@ export default function QBQuotesListPage() {
   });
 
   return (
-    <div className={styles.page}>
+    <div className={`${styles.page} has-mobile-fab`}>
       <div className="section-header">
         <h1 className="section-title">QB Quotes</h1>
         <span className="section-tag">{quotes.length} quote{quotes.length !== 1 ? 's' : ''}</span>
-        <button className="btn btn-primary" style={{ marginLeft: 'auto' }} onClick={() => navigate('/qb/quotes/new')}>
+        <button className="btn btn-primary desktop-only" style={{ marginLeft: 'auto' }} onClick={() => navigate('/qb/quotes/new')}>
           + New Quote
         </button>
       </div>
@@ -69,7 +69,9 @@ export default function QBQuotesListPage() {
             onChange={e => setSearch(e.target.value)}
           />
         </div>
-        <div style={{ overflowX: 'auto' }}>
+
+        {/* ── Desktop table ── */}
+        <div className="desktop-only" style={{ overflowX: 'auto' }}>
           <table className="std-table">
             <thead>
               <tr>
@@ -115,6 +117,45 @@ export default function QBQuotesListPage() {
             </tbody>
           </table>
         </div>
+
+        {/* ── Mobile card list ── */}
+        <div className="mobile-only">
+          {loading ? (
+            <div className="empty-state"><div className="empty-text">Loading…</div></div>
+          ) : filtered.length ? (
+            <div className="mobile-card-list">
+              {filtered.map(q => (
+                <div key={q.id} className="mobile-card" onClick={() => navigate(`/qb/quotes/${q.id}`)}>
+                  <div className="mobile-card-top">
+                    <span className="mobile-card-number">{q.quote_number}</span>
+                    <span className={`badge ${STATUS_BADGE[q.status] || 'b-pending'}`}>
+                      {STATUS_LABELS[q.status] || q.status}
+                    </span>
+                  </div>
+                  <div className="mobile-card-client">{q.client_name || '—'}{q.client_company ? ` — ${q.client_company}` : ''}</div>
+                  <div className="mobile-card-project">{q.project || 'No project name'}</div>
+                  <div className="mobile-card-meta">
+                    <span className="mobile-card-value">{fmtMoney(q.subtotal_ex_gst)}</span>
+                    <span className="mobile-card-date">{fmtDate(q.date)}</span>
+                  </div>
+                  <div className="mobile-card-actions" onClick={e => e.stopPropagation()}>
+                    <button className="act-btn edit" onClick={() => navigate(`/qb/quotes/${q.id}`)}>Edit</button>
+                    <button className="act-btn edit" onClick={() => navigate(`/qb/quotes/${q.id}/summary`)}>Summary</button>
+                    <button className="act-btn del" onClick={() => handleDelete(q.id, q.quote_number)}>Delete</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="empty-state"><div className="empty-icon">📄</div><div className="empty-text">No quotes found</div></div>
+          )}
+        </div>
+
+      </div>
+
+      {/* ── Mobile FAB — New Quote ── */}
+      <div className="mobile-fab-wrap">
+        <button className="mobile-fab" onClick={() => navigate('/qb/quotes/new')}>+ New Quote</button>
       </div>
     </div>
   );

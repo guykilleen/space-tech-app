@@ -200,6 +200,19 @@ export default function QBQuoteBuilderPage() {
   const deletedLineIds = useRef([]);
   const { isDirty, setIsDirty } = useQBDirty();
 
+  // Mobile accordion — track which units are collapsed
+  const [collapsedUnits, setCollapsedUnits] = useState(new Set());
+  function toggleUnit(key) {
+    setCollapsedUnits(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }
+
+  // Mobile collapsible Quote Details
+  const [headerOpen, setHeaderOpen] = useState(true);
+
   // Rates are locked on accepted quotes only
   const isLocked = header.status === 'accepted';
 
@@ -606,8 +619,14 @@ export default function QBQuoteBuilderPage() {
 
       {/* ── Quote details ── */}
       <div className="form-panel">
-        <div className="form-panel-title">Quote Details</div>
+        <div className="form-panel-title" style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          Quote Details
+          <button type="button" className={styles.headerToggle} onClick={() => setHeaderOpen(o => !o)}>
+            {headerOpen ? '▲ Hide' : '▼ Show'}
+          </button>
+        </div>
 
+        <div className={!headerOpen ? styles.headerBodyHidden : ''}>
         {linkedQuoteId ? (
           <>
             <div className={styles.linkedInfo}>
@@ -710,6 +729,7 @@ export default function QBQuoteBuilderPage() {
             </div>
           </div>
         )}
+        </div>{/* end collapsible header body */}
       </div>
 
       {/* ── Units ── */}
@@ -718,40 +738,54 @@ export default function QBQuoteBuilderPage() {
         return (
           <div key={unit._key} className={styles.unitCard}>
             <div className={styles.unitCardHeader}>
-              <div className={styles.unitNum}>Unit {unit.unit_number}</div>
-              <div className={styles.unitMeta}>
-                <div className={styles.unitField}>
-                  <label>Drawing #</label>
-                  <input value={unit.drawing_number} onChange={e => setUnit(unit._key, 'drawing_number', e.target.value)} placeholder="D.01" />
-                </div>
-                <div className={styles.unitField}>
-                  <label>Room</label>
-                  <input value={unit.room_number} onChange={e => setUnit(unit._key, 'room_number', e.target.value)} placeholder="Kitchen" />
-                </div>
-                <div className={styles.unitField}>
-                  <label>Level</label>
-                  <input value={unit.level} onChange={e => setUnit(unit._key, 'level', e.target.value)} placeholder="L1" />
-                </div>
-                <div className={styles.unitField} style={{ flex: 2 }}>
-                  <label>Description</label>
-                  <textarea
-                    rows={3}
-                    style={{ resize:'vertical', boxSizing:'border-box', width:'100%' }}
-                    value={unit.description}
-                    onChange={e => setUnit(unit._key, 'description', e.target.value)}
-                    onInput={e=>{ e.target.style.height='auto'; e.target.style.height=e.target.scrollHeight+'px'; }}
-                    placeholder="e.g. Tas Oak veneer on 40mm LDF joinery"
-                  />
-                </div>
-                <div className={styles.unitField} style={{ width: 80 }}>
-                  <label>Qty</label>
-                  <input type="number" min="0" step="1" value={unit.quantity} onChange={e => setUnit(unit._key, 'quantity', e.target.value)} />
+              {/* Mobile-only accordion toggle */}
+              <button type="button" className={styles.unitToggleBtn} onClick={() => toggleUnit(unit._key)}>
+                <span className={styles.unitToggleChevron}>{collapsedUnits.has(unit._key) ? '▶' : '▼'}</span>
+                <span className={styles.unitToggleLabel}>
+                  Unit {unit.unit_number}
+                  {unit.room_number ? ` · ${unit.room_number}` : unit.description ? ` · ${unit.description.slice(0, 32)}` : ''}
+                </span>
+              </button>
+              {/* Desktop: always shown; Mobile: hidden when collapsed */}
+              <div className={`${styles.unitHeaderFields}${collapsedUnits.has(unit._key) ? ' ' + styles.unitHeaderHidden : ''}`}>
+                <div className={styles.unitNum}>Unit {unit.unit_number}</div>
+                <div className={styles.unitMeta}>
+                  <div className={styles.unitField}>
+                    <label>Drawing #</label>
+                    <input value={unit.drawing_number} onChange={e => setUnit(unit._key, 'drawing_number', e.target.value)} placeholder="D.01" />
+                  </div>
+                  <div className={styles.unitField}>
+                    <label>Room</label>
+                    <input value={unit.room_number} onChange={e => setUnit(unit._key, 'room_number', e.target.value)} placeholder="Kitchen" />
+                  </div>
+                  <div className={styles.unitField}>
+                    <label>Level</label>
+                    <input value={unit.level} onChange={e => setUnit(unit._key, 'level', e.target.value)} placeholder="L1" />
+                  </div>
+                  <div className={styles.unitField} style={{ flex: 2 }}>
+                    <label>Description</label>
+                    <textarea
+                      rows={3}
+                      style={{ resize:'vertical', boxSizing:'border-box', width:'100%' }}
+                      value={unit.description}
+                      onChange={e => setUnit(unit._key, 'description', e.target.value)}
+                      onInput={e=>{ e.target.style.height='auto'; e.target.style.height=e.target.scrollHeight+'px'; }}
+                      placeholder="e.g. Tas Oak veneer on 40mm LDF joinery"
+                    />
+                  </div>
+                  <div className={styles.unitField} style={{ width: 80 }}>
+                    <label>Qty</label>
+                    <input type="number" min="0" step="1" value={unit.quantity} onChange={e => setUnit(unit._key, 'quantity', e.target.value)} />
+                  </div>
                 </div>
               </div>
               {units.length > 1 && (
-                <button className={styles.removeUnit} onClick={() => removeUnit(unit._key)} title="Remove unit">✕</button>
+                <button className={styles.removeUnit} onClick={e => { e.stopPropagation(); removeUnit(unit._key); }} title="Remove unit">✕</button>
               )}
             </div>
+
+            {/* Unit body — collapses on mobile */}
+            <div className={collapsedUnits.has(unit._key) ? styles.unitCardBodyHidden : styles.unitCardBody}>
 
             {/* Lines table */}
             <div className={styles.linesTableWrap}>
@@ -1012,6 +1046,7 @@ export default function QBQuoteBuilderPage() {
                 </button>
               )}
             </div>
+            </div>{/* end unitCardBody */}
           </div>
         );
       })}
@@ -1110,6 +1145,16 @@ export default function QBQuoteBuilderPage() {
           onCreated={() => { setJobModal(null); toast.success(`Job created from ${jobModal.quote_number}`); }}
         />
       )}
+
+      {/* ── Mobile fixed save bar ── */}
+      <div className={styles.mobileSaveBar}>
+        {linkedQuoteId && (
+          <button className="btn btn-outline" onClick={() => safeNavigate('/quotes')}>← Quotes</button>
+        )}
+        <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+          {saving ? 'Saving…' : isNew ? 'Create Quote' : 'Save'}
+        </button>
+      </div>
 
     </div>
   );
