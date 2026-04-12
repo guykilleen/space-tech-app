@@ -101,16 +101,16 @@ function fmtMoney(v) {
   return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(v || 0);
 }
 
-// Use per-unit stored rate snapshot for existing units; fall back to current global rates for new units
+// Labour rates come from the global price list only — no per-unit overrides
 function unitCalc(unit, margin, wastePct, labourRates) {
-  const R = (rateField, type) => Number(unit[rateField] ?? labourRates[type] ?? 100);
+  const R = (type) => Number(labourRates[type] ?? 100);
   const matSub    = unit.lines.reduce((s, l) =>
     l.category === 'Materials' ? s + (Number(l.price) * Number(l.quantity)) : s, 0);
   const hwSub     = unit.lines.reduce((s, l) =>
     l.category === 'Hardware'  ? s + (Number(l.price) * Number(l.quantity)) : s, 0);
   const wasteSub  = matSub * (Number(wastePct) / 100);
-  const labourSub = LABOUR_FIELDS.reduce((s, { hoursField, rateField, type }) =>
-    s + Number(unit[hoursField] ?? 0) * R(rateField, type), 0);
+  const labourSub = LABOUR_FIELDS.reduce((s, { hoursField, type }) =>
+    s + Number(unit[hoursField] ?? 0) * R(type), 0);
   const subtradeCost = (unit.subtrades || []).reduce((s, st) =>
     s + (st.mode === 'qty_rate'
       ? (Number(st.quantity) || 0) * (Number(st.rate) || 0)
@@ -500,19 +500,19 @@ export default function QBQuoteBuilderPage() {
           assembly_hours:     Number(u.assembly_hours)     || 0,
           delivery_hours:     Number(u.delivery_hours)     || 0,
           installation_hours: Number(u.installation_hours) || 0,
-          // Send current rates so manual overrides are persisted on UPDATE
-          admin_rate:        Number(u.admin_rate        ?? labourRates.admin        ?? 100),
-          cnc_rate:          Number(u.cnc_rate          ?? labourRates.cnc          ?? 100),
-          edgebander_rate:   Number(u.edgebander_rate   ?? labourRates.edgebander   ?? 100),
-          assembly_rate:     Number(u.assembly_rate     ?? labourRates.assembly     ?? 100),
-          delivery_rate:     Number(u.delivery_rate     ?? labourRates.delivery     ?? 100),
-          installation_rate: Number(u.installation_rate ?? labourRates.installation ?? 100),
-          admin_rate_overridden:        u.admin_rate_overridden        ?? false,
-          cnc_rate_overridden:          u.cnc_rate_overridden          ?? false,
-          edgebander_rate_overridden:   u.edgebander_rate_overridden   ?? false,
-          assembly_rate_overridden:     u.assembly_rate_overridden     ?? false,
-          delivery_rate_overridden:     u.delivery_rate_overridden     ?? false,
-          installation_rate_overridden: u.installation_rate_overridden ?? false,
+          // Rates always come from the global price list
+          admin_rate:        Number(labourRates.admin        ?? 100),
+          cnc_rate:          Number(labourRates.cnc          ?? 100),
+          edgebander_rate:   Number(labourRates.edgebander   ?? 100),
+          assembly_rate:     Number(labourRates.assembly     ?? 100),
+          delivery_rate:     Number(labourRates.delivery     ?? 100),
+          installation_rate: Number(labourRates.installation ?? 100),
+          admin_rate_overridden:        false,
+          cnc_rate_overridden:          false,
+          edgebander_rate_overridden:   false,
+          assembly_rate_overridden:     false,
+          delivery_rate_overridden:     false,
+          installation_rate_overridden: false,
           subtrade_margin: Number(u.subtrade_margin || 0) / 100,
           subtrades: (u.subtrades || []).map(st => ({
             type:     st.type,
@@ -909,37 +909,25 @@ export default function QBQuoteBuilderPage() {
             <div className={styles.labourSection}>
               <div className={styles.labourTitle}>Labour Hours</div>
               <div className={styles.labourRow}>
-                {LABOUR_FIELDS.map(({ hoursField, rateField, type, label }) => {
-                  const rate = Number(unit[rateField] ?? labourRates[type] ?? 100);
-                  const overridden = unit[`${type}_rate_overridden`];
+                {LABOUR_FIELDS.map(({ hoursField, type, label }, fi) => {
+                  const rate  = Number(labourRates[type] ?? 100);
+                  const hours = Number(unit[hoursField] ?? 0);
                   return (
                     <div key={hoursField} className={styles.labourField}>
-                      <label>
-                        {label}
-                        {!isLocked ? (
-                          <span className={styles.rateEditWrap}>
-                            $<input
-                              type="number" min="0" step="0.01"
-                              className={styles.rateInput}
-                              value={unit[rateField] ?? labourRates[type] ?? 100}
-                              title="Hourly rate — edit to override"
-                              onChange={e => handleLabourRateChange(unit._key, rateField, type, e.target.value)}
-                            />/hr
-                            {overridden && (
-                              <span className={styles.overrideDot} title="Rate manually overridden — will not update with price list changes">✎</span>
-                            )}
-                          </span>
-                        ) : (
-                          <span className={styles.labourRateTag}>${rate}/hr 🔒</span>
-                        )}
-                      </label>
+                      <span className={styles.labourLabel}>{label}</span>
                       <input
                         type="number" min="0" step="0.5"
+                        className={styles.labourHoursInput}
                         value={unit[hoursField] ?? 0}
                         readOnly={isLocked}
                         onChange={e => setUnit(unit._key, hoursField, e.target.value)}
+                        tabIndex={ui * 10 + fi + 1}
+                        onFocus={e => e.target.select()}
                       />
-                      <span className={styles.labourCost}>{fmtMoney(Number(unit[hoursField] ?? 0) * rate)}</span>
+                      <span className={styles.labourRateDisplay}>
+                        ${rate}/hr{isLocked ? ' 🔒' : ''}
+                      </span>
+                      <span className={styles.labourCost}>{fmtMoney(hours * rate)}</span>
                     </div>
                   );
                 })}

@@ -203,7 +203,7 @@
   margin-left: 4px;
 }
 
-/* Labour hours section */
+/* Labour hours section — vertical list */
 .labourSection {
   padding: 14px 20px;
   border-top: 1px solid var(--oak-light);
@@ -216,35 +216,43 @@
   color: var(--muted);
   margin-bottom: 10px;
 }
-.labourTitle span {
-  color: var(--oak-dark);
-  margin-left: 4px;
-}
+
+/* One row per labour type */
 .labourRow {
   display: flex;
-  gap: 16px;
-  flex-wrap: wrap;
+  flex-direction: column;
 }
 .labourField {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 110px;
-  flex: 1;
+  display: grid;
+  grid-template-columns: 120px 100px 90px 1fr;
+  align-items: center;
+  gap: 0 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(200,169,110,.15);
 }
-.labourField label {
-  font-size: .58rem;
-  letter-spacing: .18em;
-  text-transform: uppercase;
-  color: var(--muted);
+.labourField:last-child { border-bottom: none; }
+
+.labourLabel {
+  font-size: .75rem;
+  color: var(--ink);
+  font-weight: 500;
 }
-.labourField input {
+.labourHoursInput {
   padding: 7px 10px;
-  font-size: .78rem;
+  font-size: .82rem;
   background: var(--white);
+  text-align: right;
+  min-height: 36px;
+}
+.labourRateDisplay {
+  font-size: .72rem;
+  color: var(--muted);
+  text-align: center;
+  font-family: 'DM Mono', monospace;
+  letter-spacing: .04em;
 }
 .labourCost {
-  font-size: .68rem;
+  font-size: .78rem;
   color: var(--oak-dark);
   text-align: right;
   font-weight: 500;
@@ -844,15 +852,14 @@
   .linesTable th { padding: 8px 10px; }
   .linesTable td { padding: 6px 6px; }
 
-  /* Labour section — 2-col grid */
-  .labourSection { padding: 14px; }
-  .labourRow {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px 10px;
+  /* Labour section — tighten columns for small screens */
+  .labourSection { padding: 12px 14px; }
+  .labourField {
+    grid-template-columns: 100px 76px 76px 1fr;
+    gap: 0 8px;
+    padding: 7px 0;
   }
-  .labourField { flex: unset; min-width: 0; }
-  .labourField input { min-height: 44px; }
+  .labourHoursInput { min-height: 44px; }
 
   /* Subtrades */
   .subtradesSection { padding: 12px 14px; }
