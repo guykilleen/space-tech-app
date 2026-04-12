@@ -547,6 +547,21 @@
 }
 
 
+/* ── Read-only banner ───────────────────────────────────────── */
+.readOnlyBanner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(200, 169, 110, .12);
+  border: 1px solid var(--oak-light);
+  border-radius: 4px;
+  padding: 12px 18px;
+  margin-bottom: 20px;
+  font-size: .78rem;
+  color: var(--ink);
+  line-height: 1.5;
+}
+
 /* ── Rate override / locked indicators ──────────────────────── */
 
 /* Locked badge in the builder title */

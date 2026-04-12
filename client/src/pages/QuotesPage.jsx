@@ -13,6 +13,11 @@ function badge(s) {
   const [cls, label] = (map[s] || 'b-pending Pending').split(' ');
   return <span className={`badge ${cls}`}>{label}</span>;
 }
+function qbBadge(s) {
+  const map = { draft:'b-pending Draft', sent:'b-review Sent', submitted:'b-review Submitted', accepted:'b-accepted Accepted', locked:'b-locked Locked' };
+  const [cls, label] = (map[s] || `b-pending ${s}`).split(' ');
+  return <span className={`badge ${cls}`}>{label}</span>;
+}
 function fmtDate(v) {
   if (!v) return '—';
   try { const clean = v.includes('T') ? v.split('T')[0] : v; return new Date(clean + 'T00:00:00').toLocaleDateString('en-AU'); } catch { return v; }
@@ -30,6 +35,7 @@ export default function QuotesPage() {
   const [editData, setEditData] = useState({});
   const [jobModal,    setJobModal]    = useState(null); // quote to convert
   const [buildingId,  setBuildingId]  = useState(null); // QB open in progress
+  const [expandedGroups, setExpandedGroups] = useState(new Set());
   const [qCount, setQCount]           = useState(0);
 
   async function load(params = {}) {
@@ -68,10 +74,26 @@ export default function QuotesPage() {
 
   function closeEdit() { setEditId(null); }
 
-  async function openInBuilder(quoteId) {
-    setBuildingId(quoteId);
+  function toggleGroup(jtId) {
+    setExpandedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(jtId)) next.delete(jtId); else next.add(jtId);
+      return next;
+    });
+  }
+
+  async function openInBuilder(q) {
+    // If quote has revisions, navigate directly to the latest (highest revision_sequence)
+    const revisions = q.qb_revisions || [];
+    if (revisions.length > 0) {
+      const latest = revisions.reduce((best, r) => r.revision_sequence > best.revision_sequence ? r : best, revisions[0]);
+      navigate(`/qb/quotes/${latest.qb_id}`);
+      return;
+    }
+    // No existing QB quote — create one from JT quote
+    setBuildingId(q.id);
     try {
-      const res = await api.post(`/qb/quotes/from-quote/${quoteId}`);
+      const res = await api.post(`/qb/quotes/from-quote/${q.id}`);
       navigate(`/qb/quotes/${res.data.id}`);
     } catch (err) {
       toast.error(err.response?.data?.error || 'Failed to open Quote Builder');
@@ -125,10 +147,32 @@ export default function QuotesPage() {
               </tr>
             </thead>
             <tbody>
-              {sorted.length ? sorted.map(q => (
+              {sorted.length ? sorted.map(q => {
+                const revisions = q.qb_revisions || [];
+                const hasRevisions = revisions.some(r => r.revision_sequence > 0);
+                const isExpanded = expandedGroups.has(q.id);
+                const revCount = revisions.filter(r => r.revision_sequence > 0).length;
+                return (
                 <React.Fragment key={q.id}>
                   <tr id={`qrow-${q.id}`}>
-                    <td><strong>{q.quote_number || '—'}</strong></td>
+                    <td>
+                      {hasRevisions && (
+                        <button
+                          className="act-btn edit"
+                          style={{ marginRight: 6, padding: '2px 6px', fontSize: '.7rem' }}
+                          onClick={e => { e.stopPropagation(); toggleGroup(q.id); }}
+                          title={isExpanded ? 'Collapse revisions' : 'Expand revisions'}
+                        >
+                          {isExpanded ? '▼' : '▶'}
+                        </button>
+                      )}
+                      <strong>{q.quote_number || '—'}</strong>
+                      {hasRevisions && (
+                        <span style={{ marginLeft: 6, fontSize: '.68rem', color: 'var(--muted)' }}>
+                          ({revCount} rev)
+                        </span>
+                      )}
+                    </td>
                     <td>{q.initials || '—'}</td>
                     <td>{fmtDate(q.date)}</td>
                     <td>{q.client_name || '—'}</td>
@@ -147,7 +191,7 @@ export default function QuotesPage() {
                             className="act-btn"
                             title="Open Quote Builder"
                             disabled={buildingId === q.id}
-                            onClick={() => openInBuilder(q.id)}
+                            onClick={() => openInBuilder(q)}
                           >
                             {buildingId === q.id ? '…' : 'Open Quote'}
                           </button>
@@ -155,6 +199,30 @@ export default function QuotesPage() {
                       )}
                     </td>
                   </tr>
+                  {/* QB revision sub-rows */}
+                  {hasRevisions && isExpanded && revisions
+                    .sort((a, b) => a.revision_sequence - b.revision_sequence)
+                    .map(rev => (
+                      <tr key={rev.qb_id} style={{ background: 'rgba(200,169,110,.04)', fontSize: '.82rem' }}>
+                        <td style={{ paddingLeft: 28 }}>
+                          <span style={{ color: 'var(--muted)', marginRight: 6 }}>↳</span>
+                          <span>{rev.qb_number}</span>
+                          {rev.revision_suffix && (
+                            <span style={{ marginLeft: 4, fontSize: '.7rem', color: 'var(--muted)' }}>Rev_{rev.revision_suffix}</span>
+                          )}
+                        </td>
+                        <td colSpan={7} />
+                        <td>{qbBadge(rev.qb_status)}</td>
+                        <td>
+                          {isAdminOrMgr && (
+                            <button className="act-btn edit" onClick={() => navigate(`/qb/quotes/${rev.qb_id}`)}>
+                              {['submitted','sent','accepted','locked'].includes(rev.qb_status) ? 'View' : 'Edit'}
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  }
                   {editId === q.id && (
                     <tr className="edit-row">
                       <td colSpan={10}>
@@ -209,7 +277,7 @@ export default function QuotesPage() {
                     </tr>
                   )}
                 </React.Fragment>
-              )) : (
+              ); }) : (
                 <tr><td colSpan={10}><div className="empty-state"><div className="empty-icon">📋</div><div className="empty-text">No quotes found</div></div></td></tr>
               )}
             </tbody>
@@ -237,7 +305,7 @@ export default function QuotesPage() {
                       <button className="act-btn edit" onClick={() => editId === q.id ? closeEdit() : openEdit(q)}>
                         {editId === q.id ? 'Close' : 'Edit'}
                       </button>
-                      <button className="act-btn" onClick={() => openInBuilder(q.id)} disabled={buildingId === q.id}>
+                      <button className="act-btn" onClick={() => openInBuilder(q)} disabled={buildingId === q.id}>
                         {buildingId === q.id ? '…' : 'Open Quote'}
                       </button>
                     </div>

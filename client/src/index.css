@@ -123,6 +123,7 @@ label {
 .b-accepted { background: #DCF0E2; color: #1E5C2B; } .b-accepted::before { background: #3A7D44; }
 .b-declined { background: #FAE0DC; color: #7A1A0D; } .b-declined::before { background: #A33B2A; }
 .b-review   { background: #DCE8F5; color: #1A3F6F; } .b-review::before   { background: #2A5FA3; }
+.b-locked   { background: #EBEBEB; color: #555555; } .b-locked::before   { background: #888888; }
 
 /* ── Action buttons ── */
 .act-btn {

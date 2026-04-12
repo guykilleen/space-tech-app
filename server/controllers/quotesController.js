@@ -42,6 +42,39 @@ async function getAll(req, res) {
        ORDER BY q.quote_number DESC`,
       params
     );
+
+    // Enrich each JT quote with its QB revision group
+    if (rows.length) {
+      const jtIds = rows.map(r => r.id);
+      const { rows: revRows } = await pool.query(
+        `WITH linked AS (
+           SELECT h.id, COALESCE(h.parent_quote_id, h.id) AS root_id, h.quote_id
+           FROM qb_quote_headers h
+           WHERE h.quote_id = ANY($1::uuid[])
+         )
+         SELECT
+           l.quote_id AS jt_id,
+           m.id AS qb_id,
+           m.quote_number AS qb_number,
+           m.status AS qb_status,
+           m.revision_sequence,
+           m.revision_suffix,
+           m.parent_quote_id
+         FROM linked l
+         JOIN qb_quote_headers m ON (m.id = l.root_id OR m.parent_quote_id = l.root_id)
+         ORDER BY l.quote_id, m.revision_sequence`,
+        [jtIds]
+      );
+      const revByJtId = {};
+      for (const r of revRows) {
+        if (!revByJtId[r.jt_id]) revByJtId[r.jt_id] = [];
+        revByJtId[r.jt_id].push(r);
+      }
+      for (const q of rows) {
+        q.qb_revisions = revByJtId[q.id] || [];
+      }
+    }
+
     res.json(rows);
   } catch (err) {
     console.error(err);

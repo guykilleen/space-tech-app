@@ -20,6 +20,16 @@ async function fetchFull(id) {
   );
   if (!header) return null;
 
+  // Revision group info — is there already a draft in this quote's group?
+  const rootId = header.parent_quote_id || header.id;
+  const { rows: [draftCheck] } = await pool.query(
+    `SELECT 1 FROM qb_quote_headers
+     WHERE (id = $1 OR parent_quote_id = $1) AND id != $2 AND status = 'draft'
+     LIMIT 1`,
+    [rootId, header.id]
+  );
+  header.group_has_draft = !!draftCheck;
+
   const { rows: units } = await pool.query(
     `SELECT * FROM qb_quote_units WHERE quote_id = $1 ORDER BY sort_order, unit_number`,
     [id]
@@ -80,7 +90,7 @@ async function getAll(req, res) {
     const { rows } = await pool.query(`
       SELECT
         h.id, h.quote_number, h.date, h.project, h.prepared_by, h.status, h.margin,
-        h.created_at,
+        h.created_at, h.parent_quote_id, h.revision_suffix, h.revision_sequence,
         c.name    AS client_name,
         c.company AS client_company,
         (
@@ -363,7 +373,7 @@ async function _upsertFull(quoteId, body, client) {
       `SELECT h.status, c.name FROM qb_quote_headers h LEFT JOIN qb_contacts c ON h.client_id = c.id WHERE h.id = $1`,
       [quoteId]
     );
-    const jtStatus = { draft: 'pending', sent: 'review', accepted: 'accepted', declined: 'declined' }[qbHdr?.status] || 'pending';
+    const jtStatus = { draft: 'pending', sent: 'review', submitted: 'review', accepted: 'accepted', declined: 'declined', locked: 'pending' }[qbHdr?.status] || 'pending';
     await client.query(
       'UPDATE quotes SET value = $1, client_name = COALESCE($2, client_name), status = $3 WHERE id = $4',
       [Number(tot.subtotal), qbHdr?.name || null, jtStatus, hdr.quote_id]
@@ -430,13 +440,22 @@ async function update(req, res) {
 
 async function updateStatus(req, res) {
   const { status } = req.body;
-  const jtStatus = { draft: 'pending', sent: 'review', accepted: 'accepted', declined: 'declined' }[status] || 'pending';
+  const jtStatus = { draft: 'pending', sent: 'review', submitted: 'review', accepted: 'accepted', declined: 'declined', locked: 'pending' }[status] || 'pending';
   try {
     const { rows } = await pool.query(
       `UPDATE qb_quote_headers SET status = $1 WHERE id = $2 RETURNING *`,
       [status, req.params.id]
     );
     if (!rows.length) return res.status(404).json({ error: 'Not found' });
+    // When a revision is accepted, lock all other quotes in the same group
+    if (status === 'accepted') {
+      const rootId = rows[0].parent_quote_id || rows[0].id;
+      await pool.query(
+        `UPDATE qb_quote_headers SET status = 'locked'
+         WHERE (id = $1 OR parent_quote_id = $1) AND id != $2`,
+        [rootId, req.params.id]
+      );
+    }
     // Sync status to linked JT quote
     if (rows[0].quote_id) {
       await pool.query('UPDATE quotes SET status = $1 WHERE id = $2', [jtStatus, rows[0].quote_id]);
@@ -816,6 +835,152 @@ async function getPdf(req, res) {
   }
 }
 
+// ── Revision ─────────────────────────────────────────────────────────────
+
+// POST /qb/quotes/:id/revise
+// Deep-copies the quote, assigns the next revision letter, locks the source.
+// Only quotes in 'submitted', 'sent', or 'accepted' state can be revised.
+// Returns 409 if a draft revision already exists in the group.
+async function revise(req, res) {
+  const { id } = req.params;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // 1. Load source
+    const { rows: [source] } = await client.query(
+      'SELECT * FROM qb_quote_headers WHERE id = $1', [id]
+    );
+    if (!source) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Not found' }); }
+    if (source.status === 'draft') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Draft quotes do not need revision — edit directly' });
+    }
+
+    // 2. Find group root
+    const rootId = source.parent_quote_id || source.id;
+
+    // 3. Base quote number (strip any existing Rev_ suffix)
+    const { rows: [rootRow] } = await client.query(
+      'SELECT quote_number FROM qb_quote_headers WHERE id = $1', [rootId]
+    );
+    const baseNumber = rootRow.quote_number.split(' Rev_')[0];
+
+    // 4. Get all quotes in the group; check for existing draft
+    const { rows: group } = await client.query(
+      `SELECT id, status, revision_sequence FROM qb_quote_headers
+       WHERE id = $1 OR parent_quote_id = $1
+       ORDER BY revision_sequence`,
+      [rootId]
+    );
+    if (group.some(q => q.status === 'draft')) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'A draft revision already exists in this group' });
+    }
+
+    // 5. Determine next revision suffix (1→A, 2→B, …)
+    const maxSeq = Math.max(...group.map(q => Number(q.revision_sequence)));
+    const nextSeq = maxSeq + 1;
+    if (nextSeq > 26) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Maximum revisions (26) reached' }); }
+    const suffix        = String.fromCharCode(64 + nextSeq); // 65='A'
+    const newQuoteNumber = `${baseNumber} Rev_${suffix}`;
+
+    // 6. Lock source quote and transfer the JT link to the new revision.
+    // quote_id has a UNIQUE constraint — only one QB quote can be linked to each JT quote,
+    // so we clear it on the source before setting it on the revision.
+    await client.query(
+      'UPDATE qb_quote_headers SET status = $1, quote_id = NULL WHERE id = $2',
+      ['locked', id]
+    );
+
+    // 7. Insert new header (deep copy, status=draft), inheriting the JT link
+    const { rows: [newHdr] } = await client.query(
+      `INSERT INTO qb_quote_headers
+         (quote_number, date, client_id, project, prepared_by, margin, waste_pct,
+          status, notes, quote_id, parent_quote_id, revision_suffix, revision_sequence)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,'draft',$8,$9,$10,$11,$12) RETURNING id`,
+      [newQuoteNumber, source.date, source.client_id, source.project,
+       source.prepared_by, source.margin, source.waste_pct, source.notes,
+       source.quote_id, rootId, suffix, nextSeq]
+    );
+    const newId = newHdr.id;
+
+    // 8. Deep copy units → lines → subtrades
+    const { rows: units } = await client.query(
+      'SELECT * FROM qb_quote_units WHERE quote_id = $1 ORDER BY sort_order, unit_number', [id]
+    );
+    for (const unit of units) {
+      const { rows: [newUnit] } = await client.query(
+        `INSERT INTO qb_quote_units
+           (quote_id, unit_number, drawing_number, room_number, level, description,
+            quantity, sort_order,
+            admin_hours, cnc_hours, edgebander_hours, assembly_hours,
+            delivery_hours, installation_hours,
+            admin_rate, cnc_rate, edgebander_rate, assembly_rate,
+            delivery_rate, installation_rate,
+            admin_rate_overridden, cnc_rate_overridden, edgebander_rate_overridden,
+            assembly_rate_overridden, delivery_rate_overridden, installation_rate_overridden,
+            subtrade_margin)
+         VALUES
+           ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,
+            $21,$22,$23,$24,$25,$26,$27)
+         RETURNING id`,
+        [newId, unit.unit_number, unit.drawing_number, unit.room_number,
+         unit.level, unit.description, unit.quantity, unit.sort_order,
+         unit.admin_hours, unit.cnc_hours, unit.edgebander_hours, unit.assembly_hours,
+         unit.delivery_hours, unit.installation_hours,
+         unit.admin_rate, unit.cnc_rate, unit.edgebander_rate, unit.assembly_rate,
+         unit.delivery_rate, unit.installation_rate,
+         unit.admin_rate_overridden, unit.cnc_rate_overridden, unit.edgebander_rate_overridden,
+         unit.assembly_rate_overridden, unit.delivery_rate_overridden, unit.installation_rate_overridden,
+         unit.subtrade_margin]
+      );
+      const newUnitId = newUnit.id;
+
+      // Lines
+      const { rows: lines } = await client.query(
+        `SELECT price_list_id, category, product, price, unit_of_measure, quantity,
+                sort_order, price_overridden
+         FROM qb_quote_unit_lines WHERE unit_id = $1 ORDER BY sort_order`,
+        [unit.id]
+      );
+      for (const l of lines) {
+        await client.query(
+          `INSERT INTO qb_quote_unit_lines
+             (unit_id, price_list_id, category, product, price, unit_of_measure,
+              quantity, sort_order, price_overridden)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+          [newUnitId, l.price_list_id, l.category, l.product, l.price,
+           l.unit_of_measure, l.quantity, l.sort_order, l.price_overridden]
+        );
+      }
+
+      // Subtrades
+      const { rows: subtrades } = await client.query(
+        'SELECT type, mode, cost, quantity, rate FROM qb_unit_subtrades WHERE unit_id = $1',
+        [unit.id]
+      );
+      for (const st of subtrades) {
+        await client.query(
+          `INSERT INTO qb_unit_subtrades (unit_id, type, mode, cost, quantity, rate)
+           VALUES ($1,$2,$3,$4,$5,$6)`,
+          [newUnitId, st.type, st.mode, st.cost, st.quantity, st.rate]
+        );
+      }
+    }
+
+    await client.query('COMMIT');
+    const newQuote = await fetchFull(newId);
+    res.status(201).json(newQuote);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  } finally {
+    client.release();
+  }
+}
+
 // ── Rate override helpers ─────────────────────────────────────────────────
 
 const EDITABLE_STATUSES = ['draft', 'pending'];
@@ -1049,4 +1214,5 @@ module.exports = {
   getSummary, getBudgetQty, getPdf,
   getByQuoteId, createFromQuote,
   getRateDiff, syncRates,
+  revise,
 };

@@ -174,6 +174,7 @@ export default function QBQuoteBuilderPage() {
   const [contacts,     setContacts]     = useState([]);
   const [labourRates,  setLabourRates]  = useState({});
   const [saving,       setSaving]       = useState(false);
+  const [revising,     setRevising]     = useState(false);
   const [loading,      setLoading]      = useState(!isNew);
   const [linkedQuoteId,   setLinkedQuoteId]   = useState(null);
   const [jtClientName,    setJtClientName]    = useState('');
@@ -184,15 +185,16 @@ export default function QBQuoteBuilderPage() {
   const savedStatusRef = useRef(null); // tracks last-saved QB status to detect accepted transition
 
   const [header, setHeader] = useState({
-    quote_number: searchParams.get('quote_number') || '',
-    date:         today,
-    client_id:    '',
-    project:      searchParams.get('project') || '',
-    prepared_by:  '',
-    margin:       15,
-    waste_pct:    10,
-    status:       'draft',
-    notes:        '',
+    quote_number:    searchParams.get('quote_number') || '',
+    date:            today,
+    client_id:       '',
+    project:         searchParams.get('project') || '',
+    prepared_by:     '',
+    margin:          15,
+    waste_pct:       10,
+    status:          'draft',
+    notes:           '',
+    group_has_draft: false,
   });
 
   const [units,          setUnits]          = useState([EMPTY_UNIT(1)]);
@@ -213,8 +215,13 @@ export default function QBQuoteBuilderPage() {
   // Mobile collapsible Quote Details
   const [headerOpen, setHeaderOpen] = useState(true);
 
-  // Rates are locked on accepted quotes only
-  const isLocked = header.status === 'accepted';
+  // Quote is fully read-only when the status already stored in the DB is sent/submitted/accepted/locked.
+  // Using savedStatusRef (the status at load time, updated after each save) means a user who just
+  // changed the dropdown from draft → sent can still save that transition; it only becomes read-only
+  // after that first save has committed the sent status to the database.
+  const isReadOnly = ['sent', 'submitted', 'accepted', 'locked'].includes(savedStatusRef.current);
+  // Keep isLocked as an alias so existing references still work
+  const isLocked = isReadOnly;
 
   // ── Load reference data ─────────────────────────────────────────────────
   useEffect(() => {
@@ -251,15 +258,16 @@ export default function QBQuoteBuilderPage() {
         setJtClientName(q.jt_client_name || '');
         savedStatusRef.current = q.status;
         setHeader({
-          quote_number: q.quote_number,
-          date:         q.date?.split('T')[0] || today,
-          client_id:    q.client_id || '',
-          project:      q.project || '',
-          prepared_by:  q.prepared_by || '',
-          margin:       (q.margin ?? 0.10) * 100,
-          waste_pct:    (q.waste_pct ?? 0.05) * 100,
-          status:       q.status,
-          notes:        q.notes || '',
+          quote_number:    q.quote_number,
+          date:            q.date?.split('T')[0] || today,
+          client_id:       q.client_id || '',
+          project:         q.project || '',
+          prepared_by:     q.prepared_by || '',
+          margin:          (q.margin ?? 0.10) * 100,
+          waste_pct:       (q.waste_pct ?? 0.05) * 100,
+          status:          q.status,
+          notes:           q.notes || '',
+          group_has_draft: q.group_has_draft || false,
         });
         setUnits(q.units.map(u => { const m = mapUnit(u); return { ...m, lines: mergeWithDefaults(m.lines, priceList) }; }));
         deletedUnitIds.current = [];
@@ -327,16 +335,6 @@ export default function QBQuoteBuilderPage() {
   function setUnit(key, field, val) {
     setIsDirty(true);
     setUnits(u => u.map(x => x._key === key ? { ...x, [field]: val } : x));
-  }
-
-  // Sets a labour rate and marks it as manually overridden
-  function handleLabourRateChange(unitKey, rateField, type, val) {
-    setIsDirty(true);
-    setUnits(u => u.map(x => x._key !== unitKey ? x : {
-      ...x,
-      [rateField]: val,
-      [`${type}_rate_overridden`]: true,
-    }));
   }
 
   // ── Line helpers ────────────────────────────────────────────────────────
@@ -474,6 +472,20 @@ export default function QBQuoteBuilderPage() {
     }
   }
 
+  // ── Revise ──────────────────────────────────────────────────────────────
+  async function handleRevise() {
+    setRevising(true);
+    try {
+      const res = await api.post(`/qb/quotes/${id}/revise`);
+      toast.success(`Revision ${res.data.quote_number} created`);
+      navigate(`/qb/quotes/${res.data.id}`);
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to create revision');
+    } finally {
+      setRevising(false);
+    }
+  }
+
   // ── Save ────────────────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
     if (!header.quote_number.trim()) return toast.error('Quote number required');
@@ -596,8 +608,12 @@ export default function QBQuoteBuilderPage() {
       {/* ── Header ── */}
       <div className={styles.builderHeader}>
         <div className={styles.builderTitle}>
-          {isNew ? 'New Quote' : `Editing ${header.quote_number}`}
-          {isLocked && <span className={styles.lockedBadge}>🔒 Accepted — Rates Locked</span>}
+          {isNew ? 'New Quote' : `${isReadOnly ? 'Viewing' : 'Editing'} ${header.quote_number}`}
+          {isReadOnly && (
+            <span className={styles.lockedBadge}>
+              🔒 {{ accepted: 'Accepted', locked: 'Locked', sent: 'Sent', submitted: 'Submitted' }[header.status] || header.status} — Read Only
+            </span>
+          )}
         </div>
         <div className={styles.builderActions}>
           {linkedQuoteId && (
@@ -610,12 +626,36 @@ export default function QBQuoteBuilderPage() {
               <button type="button" className="btn btn-outline" onClick={handleOpenPdf} disabled={pdfLoading}>{pdfLoading ? 'Generating…' : 'PDF →'}</button>
             </>
           )}
-          {isDirty && <span className={styles.unsavedBadge}>● Unsaved changes</span>}
-          <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-            {saving ? 'Saving…' : isNew ? 'Create Quote' : 'Save Quote'}
-          </button>
+          {!isReadOnly && isDirty && <span className={styles.unsavedBadge}>● Unsaved changes</span>}
+          {isReadOnly ? (
+            <button
+              className="btn btn-primary"
+              onClick={handleRevise}
+              disabled={revising || header.group_has_draft}
+              title={header.group_has_draft ? 'A draft revision already exists for this quote' : 'Create an editable revision of this quote'}
+            >
+              {revising ? 'Creating…' : 'Revise'}
+            </button>
+          ) : (
+            <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+              {saving ? 'Saving…' : isNew ? 'Create Quote' : 'Save Quote'}
+            </button>
+          )}
         </div>
       </div>
+
+      {/* ── Read-only banner ── */}
+      {isReadOnly && (
+        <div className={styles.readOnlyBanner}>
+          🔒 This quote is <strong>{header.status}</strong> and cannot be edited.
+          {!header.group_has_draft
+            ? ' Click Revise to create an editable copy.'
+            : ' A draft revision already exists — open it to continue editing.'}
+        </div>
+      )}
+
+      {/* ── Editable form area — disabled when read-only ── */}
+      <fieldset disabled={isReadOnly} style={{ border: 'none', padding: 0, margin: 0, minWidth: 0 }}>
 
       {/* ── Quote details ── */}
       <div className="form-panel">
@@ -642,7 +682,7 @@ export default function QBQuoteBuilderPage() {
                   <option value="draft">Draft</option>
                   <option value="sent">Sent</option>
                   <option value="accepted">Accepted</option>
-                  <option value="declined">Declined</option>
+                  <option value="locked">Locked</option>
                 </select>
               </div>
               <div className="field">
@@ -1039,9 +1079,11 @@ export default function QBQuoteBuilderPage() {
         );
       })}
 
-      {!isLocked && (
+      {!isReadOnly && (
         <button className={styles.addUnitBtn} onClick={addUnit}>+ Add Unit</button>
       )}
+
+      </fieldset>{/* end read-only fieldset */}
 
       {/* ── Quote totals ── */}
       <div className={styles.quoteTotals}>
@@ -1057,9 +1099,20 @@ export default function QBQuoteBuilderPage() {
             <button className="btn btn-outline" onClick={() => safeNavigate(`/qb/quotes/${id}/budget`)}>Budget Quantities →</button>
           </>
         )}
-        <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-          {saving ? 'Saving…' : isNew ? 'Create Quote' : 'Save Quote'}
-        </button>
+        {isReadOnly ? (
+          <button
+            className="btn btn-primary"
+            onClick={handleRevise}
+            disabled={revising || header.group_has_draft}
+            title={header.group_has_draft ? 'A draft revision already exists for this quote' : undefined}
+          >
+            {revising ? 'Creating…' : 'Revise'}
+          </button>
+        ) : (
+          <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+            {saving ? 'Saving…' : isNew ? 'Create Quote' : 'Save Quote'}
+          </button>
+        )}
       </div>
 
       {/* ── Rate diff dialog ── */}
@@ -1139,9 +1192,19 @@ export default function QBQuoteBuilderPage() {
         {linkedQuoteId && (
           <button className="btn btn-outline" onClick={() => safeNavigate('/quotes')}>← Quotes</button>
         )}
-        <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-          {saving ? 'Saving…' : isNew ? 'Create Quote' : 'Save'}
-        </button>
+        {isReadOnly ? (
+          <button
+            className="btn btn-primary"
+            onClick={handleRevise}
+            disabled={revising || header.group_has_draft}
+          >
+            {revising ? 'Creating…' : 'Revise'}
+          </button>
+        ) : (
+          <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+            {saving ? 'Saving…' : isNew ? 'Create Quote' : 'Save'}
+          </button>
+        )}
       </div>
 
     </div>
