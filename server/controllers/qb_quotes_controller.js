@@ -536,7 +536,7 @@ async function getSummary(req, res) {
                            Number(u.installation_hours)  * Number(u.installation_rate);
       const subtradeSell = subtradeCost * (1 + Number(u.subtrade_margin));
       const unitCost     = (matSub * (1 + wastePct) + hwSub + labourSub) * (1 + margin) + subtradeSell;
-      const total        = unitCost * Number(u.quantity);
+      const total        = Math.ceil(unitCost * Number(u.quantity));
       subtotal += total;
       return { ...u, labour_sub: labourSub, subtrade_sell: subtradeSell, unit_cost: unitCost, total };
     });
@@ -702,7 +702,7 @@ async function getPdf(req, res) {
       }, 0);
       const subtradeSell = subtradeCost * (1 + Number(u.subtrade_margin || 0));
       const unitCost     = (matSub * (1 + wastePct) + hwSub + labourSub) * (1 + margin) + subtradeSell;
-      const total        = unitCost * Number(u.quantity);
+      const total        = Math.ceil(unitCost * Number(u.quantity));
       subtotal += total;
       return { ...u, unit_cost: unitCost, total };
     });

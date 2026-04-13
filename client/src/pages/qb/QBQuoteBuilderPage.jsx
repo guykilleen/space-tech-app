@@ -26,7 +26,7 @@ const EMPTY_UNIT = (n) => ({
   admin_rate_overridden: false, cnc_rate_overridden: false,
   edgebander_rate_overridden: false, assembly_rate_overridden: false,
   delivery_rate_overridden: false, installation_rate_overridden: false,
-  subtrade_margin: 0,
+  subtrade_margin: 15,
   subtrades: SUBTRADE_ITEMS.map(s => EMPTY_SUBTRADE(s.type)),
   lines: [], // populated with defaults once priceList loads
 });
@@ -117,7 +117,7 @@ function unitCalc(unit, margin, wastePct, labourRates) {
       : (Number(st.cost) || 0)), 0);
   const subtradeSell = subtradeCost * (1 + Number(unit.subtrade_margin || 0) / 100);
   const unitCost  = (matSub + wasteSub + hwSub + labourSub) * (1 + Number(margin) / 100) + subtradeSell;
-  const unitTotal = unitCost * Number(unit.quantity);
+  const unitTotal = Math.ceil(unitCost * Number(unit.quantity));
   return { matSub, wasteSub, hwSub, labourSub, subtradeCost, subtradeSell, unitCost, unitTotal };
 }
 
@@ -189,7 +189,7 @@ export default function QBQuoteBuilderPage() {
     date:            today,
     client_id:       '',
     project:         searchParams.get('project') || '',
-    prepared_by:     '',
+    prepared_by:     'Guy Killeen',
     margin:          15,
     waste_pct:       10,
     status:          'draft',
