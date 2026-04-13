@@ -9,3 +9,4 @@ server/.env.test
 build/
 dist/
 .DS_Store
+*.pdf
