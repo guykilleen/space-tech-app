@@ -112,9 +112,9 @@ export default function GanttPage() {
 
       {/* Controls */}
       <div className={styles.controls}>
-        <button className={styles.navBtn} onClick={() => setOffset(o => o - 1)}>◀ Prev</button>
-        <button className={styles.todayBtn} onClick={() => setOffset(0)}>Today</button>
-        <button className={styles.navBtn} onClick={() => setOffset(o => o + 1)}>Next ▶</button>
+        <button className="btn btn-outline" onClick={() => setOffset(o => o - 1)}>◀ Prev</button>
+        <button className="btn btn-primary" onClick={() => setOffset(0)}>Today</button>
+        <button className="btn btn-outline" onClick={() => setOffset(o => o + 1)}>Next ▶</button>
         <span className={styles.periodLabel}>{periodLabel}</span>
         <div className={styles.viewToggle}>
           {['4w','8w','12w','6m'].map(v => (
