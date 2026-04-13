@@ -90,6 +90,7 @@ export default function QBQuoteSummaryPage() {
         <div className="table-toolbar">
           <span className="ttitle">Summary of Works</span>
         </div>
+        <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
         <table className="std-table">
           <thead>
             <tr>
@@ -118,6 +119,7 @@ export default function QBQuoteSummaryPage() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Totals */}

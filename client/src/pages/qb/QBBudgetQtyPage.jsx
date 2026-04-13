@@ -78,6 +78,7 @@ export default function QBBudgetQtyPage() {
               Raw cost — margin applied in summary below
             </span>
           </div>
+          <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
           <table className={tableClass}>
             <thead>
               <tr>
@@ -106,6 +107,7 @@ export default function QBBudgetQtyPage() {
               </tr>
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
@@ -115,6 +117,7 @@ export default function QBBudgetQtyPage() {
           <div className="table-toolbar">
             <span className="ttitle">Hardware</span>
           </div>
+          <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
           <table className={tableClass}>
             <thead>
               <tr>
@@ -143,6 +146,7 @@ export default function QBBudgetQtyPage() {
               </tr>
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
@@ -151,6 +155,7 @@ export default function QBBudgetQtyPage() {
         <div className="table-toolbar">
           <span className="ttitle">Labour</span>
         </div>
+        <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
         <table className={tableClass}>
           <thead>
             <tr>
@@ -175,6 +180,7 @@ export default function QBBudgetQtyPage() {
             </tr>
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Subtrades */}
@@ -183,6 +189,7 @@ export default function QBBudgetQtyPage() {
           <div className="table-toolbar">
             <span className="ttitle">Subtrades</span>
           </div>
+          <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
           <table className={tableClass}>
             <thead>
               <tr>
@@ -208,6 +215,7 @@ export default function QBBudgetQtyPage() {
               </tr>
             </tbody>
           </table>
+          </div>
         </div>
       )}
 

@@ -1,4 +1,4 @@
-.shell { min-height: 100vh; display: flex; flex-direction: column; }
+.shell { min-height: 100vh; display: flex; flex-direction: column; overscroll-behavior: none; }
 
 .header {
   background: var(--dark);

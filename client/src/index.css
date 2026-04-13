@@ -21,6 +21,8 @@ body {
   font-family: 'DM Mono', monospace;
   color: var(--ink);
   background: var(--grain);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
   background-image:
     repeating-linear-gradient(92deg, transparent, transparent 40px, rgba(204,20,20,0.03) 40px, rgba(204,20,20,0.03) 41px),
     repeating-linear-gradient(180deg, transparent, transparent 60px, rgba(204,20,20,0.02) 60px, rgba(204,20,20,0.02) 61px);
@@ -171,6 +173,7 @@ label {
 .form-grid.cols-4 { grid-template-columns: repeat(4, 1fr); }
 .field { display: flex; flex-direction: column; gap: 6px; }
 .field.span-2   { grid-column: span 2; }
+.field.span-4   { grid-column: 1/-1; }
 .field.span-full{ grid-column: 1/-1; }
 
 .btn-row { display: flex; gap: 12px; margin-top: 24px; justify-content: flex-end; flex-wrap: wrap; }
@@ -273,7 +276,7 @@ label {
   .section-title { font-size: 1.75rem; }
 
   /* Extra bottom padding when fixed bar present */
-  .has-mobile-fab { padding-bottom: 80px !important; }
+  .has-mobile-fab { padding-bottom: calc(80px + env(safe-area-inset-bottom)) !important; }
 
   /* Forms */
   .form-panel { padding: 20px 16px; margin-bottom: 20px; }
@@ -312,7 +315,7 @@ label {
     display: block;
     position: fixed;
     bottom: 0; left: 0; right: 0;
-    padding: 12px 16px;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
     background: var(--white);
     border-top: 2px solid var(--oak-light);
     z-index: 80;
