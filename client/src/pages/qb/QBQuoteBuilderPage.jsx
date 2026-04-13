@@ -608,8 +608,8 @@ export default function QBQuoteBuilderPage() {
       {/* ── Header ── */}
       <div className={styles.builderHeader}>
         <div className={styles.builderTitle}>
-          {isNew ? 'New Quote' : `${isReadOnly ? 'Viewing' : 'Editing'} ${header.quote_number}`}
-          {isReadOnly && (
+          {isNew ? 'New Quote' : `${isReadOnly && header.status !== 'draft' ? 'Viewing' : 'Editing'} ${header.quote_number}`}
+          {isReadOnly && header.status !== 'draft' && (
             <span className={styles.lockedBadge}>
               🔒 {{ accepted: 'Accepted', locked: 'Locked', sent: 'Sent', submitted: 'Submitted' }[header.status] || header.status} — Read Only
             </span>
@@ -626,8 +626,8 @@ export default function QBQuoteBuilderPage() {
               <button type="button" className="btn btn-outline" onClick={handleOpenPdf} disabled={pdfLoading}>{pdfLoading ? 'Generating…' : 'PDF →'}</button>
             </>
           )}
-          {!isReadOnly && isDirty && <span className={styles.unsavedBadge}>● Unsaved changes</span>}
-          {isReadOnly ? (
+          {(!isReadOnly || header.status === 'draft') && isDirty && <span className={styles.unsavedBadge}>● Unsaved changes</span>}
+          {isReadOnly && header.status !== 'draft' ? (
             <button
               className="btn btn-primary"
               onClick={handleRevise}
@@ -645,7 +645,7 @@ export default function QBQuoteBuilderPage() {
       </div>
 
       {/* ── Read-only banner ── */}
-      {isReadOnly && (
+      {isReadOnly && header.status !== 'draft' && (
         <div className={styles.readOnlyBanner}>
           🔒 This quote is <strong>{header.status}</strong> and cannot be edited.
           {!header.group_has_draft
@@ -653,9 +653,6 @@ export default function QBQuoteBuilderPage() {
             : ' A draft revision already exists — open it to continue editing.'}
         </div>
       )}
-
-      {/* ── Editable form area — disabled when read-only ── */}
-      <fieldset disabled={isReadOnly} style={{ border: 'none', padding: 0, margin: 0, minWidth: 0 }}>
 
       {/* ── Quote details ── */}
       <div className="form-panel">
@@ -687,15 +684,15 @@ export default function QBQuoteBuilderPage() {
               </div>
               <div className="field">
                 <label>Margin (%)</label>
-                <input type="number" step="1" min="0" max="100" value={header.margin} onChange={e => setH('margin', e.target.value)} />
+                <input type="number" step="1" min="0" max="100" value={header.margin} onChange={e => setH('margin', e.target.value)} disabled={isReadOnly} />
               </div>
               <div className="field">
                 <label>Material Waste (%)</label>
-                <input type="number" step="1" min="0" max="100" value={header.waste_pct} onChange={e => setH('waste_pct', e.target.value)} />
+                <input type="number" step="1" min="0" max="100" value={header.waste_pct} onChange={e => setH('waste_pct', e.target.value)} disabled={isReadOnly} />
               </div>
               <div className="field">
                 <label>Prepared By</label>
-                <input value={header.prepared_by} onChange={e => setH('prepared_by', e.target.value)} placeholder="e.g. Guy Killeen" />
+                <input value={header.prepared_by} onChange={e => setH('prepared_by', e.target.value)} placeholder="e.g. Guy Killeen" disabled={isReadOnly} />
               </div>
               <div className="field span-4">
                 <label>Notes</label>
@@ -706,6 +703,7 @@ export default function QBQuoteBuilderPage() {
                   onChange={e => setH('notes', e.target.value)}
                   onInput={e=>{ e.target.style.height='auto'; e.target.style.height=e.target.scrollHeight+'px'; }}
                   placeholder="Internal notes or client-facing exclusions"
+                  disabled={isReadOnly}
                 />
               </div>
             </div>
@@ -714,11 +712,11 @@ export default function QBQuoteBuilderPage() {
           <div className="form-grid cols-4">
             <div className="field">
               <label>Quote Number</label>
-              <input value={header.quote_number} onChange={e => setH('quote_number', e.target.value)} placeholder="V-0001" />
+              <input value={header.quote_number} onChange={e => setH('quote_number', e.target.value)} placeholder="V-0001" disabled={isReadOnly} />
             </div>
             <div className="field">
               <label>Date</label>
-              <input type="date" value={header.date} onChange={e => setH('date', e.target.value)} />
+              <input type="date" value={header.date} onChange={e => setH('date', e.target.value)} disabled={isReadOnly} />
             </div>
             <div className="field">
               <label>Status</label>
@@ -731,15 +729,15 @@ export default function QBQuoteBuilderPage() {
             </div>
             <div className="field">
               <label>Margin (%)</label>
-              <input type="number" step="1" min="0" max="100" value={header.margin} onChange={e => setH('margin', e.target.value)} />
+              <input type="number" step="1" min="0" max="100" value={header.margin} onChange={e => setH('margin', e.target.value)} disabled={isReadOnly} />
             </div>
             <div className="field">
               <label>Material Waste (%)</label>
-              <input type="number" step="1" min="0" max="100" value={header.waste_pct} onChange={e => setH('waste_pct', e.target.value)} />
+              <input type="number" step="1" min="0" max="100" value={header.waste_pct} onChange={e => setH('waste_pct', e.target.value)} disabled={isReadOnly} />
             </div>
             <div className="field span-2">
               <label>Client</label>
-              <select value={header.client_id} onChange={e => setH('client_id', e.target.value)}>
+              <select value={header.client_id} onChange={e => setH('client_id', e.target.value)} disabled={isReadOnly}>
                 <option value="">— Select contact —</option>
                 {contacts.map(c => (
                   <option key={c.id} value={c.id}>
@@ -750,11 +748,11 @@ export default function QBQuoteBuilderPage() {
             </div>
             <div className="field span-2">
               <label>Project</label>
-              <input value={header.project} onChange={e => setH('project', e.target.value)} placeholder="Project name or address" />
+              <input value={header.project} onChange={e => setH('project', e.target.value)} placeholder="Project name or address" disabled={isReadOnly} />
             </div>
             <div className="field span-2">
               <label>Prepared By</label>
-              <input value={header.prepared_by} onChange={e => setH('prepared_by', e.target.value)} placeholder="e.g. Guy Killeen" />
+              <input value={header.prepared_by} onChange={e => setH('prepared_by', e.target.value)} placeholder="e.g. Guy Killeen" disabled={isReadOnly} />
             </div>
             <div className="field span-2">
               <label>Notes</label>
@@ -765,12 +763,16 @@ export default function QBQuoteBuilderPage() {
                 onChange={e => setH('notes', e.target.value)}
                 onInput={e=>{ e.target.style.height='auto'; e.target.style.height=e.target.scrollHeight+'px'; }}
                 placeholder="Internal notes or client-facing exclusions"
+                disabled={isReadOnly}
               />
             </div>
           </div>
         )}
         </div>{/* end collapsible header body */}
       </div>
+
+      {/* ── Editable form area — disabled when read-only (status dropdown above is intentionally outside) ── */}
+      <fieldset disabled={isReadOnly} style={{ border: 'none', padding: 0, margin: 0, minWidth: 0 }}>
 
       {/* ── Units ── */}
       {units.map((unit, ui) => {
@@ -1099,7 +1101,7 @@ export default function QBQuoteBuilderPage() {
             <button className="btn btn-outline" onClick={() => safeNavigate(`/qb/quotes/${id}/budget`)}>Budget Quantities →</button>
           </>
         )}
-        {isReadOnly ? (
+        {isReadOnly && header.status !== 'draft' ? (
           <button
             className="btn btn-primary"
             onClick={handleRevise}
@@ -1192,7 +1194,7 @@ export default function QBQuoteBuilderPage() {
         {linkedQuoteId && (
           <button className="btn btn-outline" onClick={() => safeNavigate('/quotes')}>← Quotes</button>
         )}
-        {isReadOnly ? (
+        {isReadOnly && header.status !== 'draft' ? (
           <button
             className="btn btn-primary"
             onClick={handleRevise}
