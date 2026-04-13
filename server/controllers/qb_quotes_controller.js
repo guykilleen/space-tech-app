@@ -538,7 +538,7 @@ async function getSummary(req, res) {
       const unitCost     = (matSub * (1 + wastePct) + hwSub + labourSub) * (1 + margin) + subtradeSell;
       const total        = Math.ceil(unitCost * Number(u.quantity));
       subtotal += total;
-      return { ...u, labour_sub: labourSub, subtrade_sell: subtradeSell, unit_cost: unitCost, total };
+      return { ...u, labour_sub: labourSub, subtrade_sell: subtradeSell, unit_cost: Math.ceil(unitCost), total };
     });
 
     const gst            = subtotal * 0.10;
@@ -727,7 +727,7 @@ async function getPdf(req, res) {
         </td>
         <td class="muted">${esc(u.drawing_number || '')}</td>
         <td class="right">${Number(u.quantity) % 1 === 0 ? Number(u.quantity) : Number(u.quantity).toFixed(2)}</td>
-        <td class="right">${fmt(u.unit_cost)}</td>
+        <td class="right">${fmt(Math.ceil(u.unit_cost))}</td>
         <td class="right"><strong>${fmt(u.total)}</strong></td>
       </tr>`;
     }).join('');
