@@ -4,6 +4,65 @@ const path = require('path');
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
+/**
+ * Calculate the Summary-page subtotal (ex-GST) for a QB quote.
+ * Matches getSummary() exactly: Math.ceil per unit price, then sum.
+ * Use this for all write-backs to quotes.value so the register value
+ * always equals what the client sees on the Summary page.
+ *
+ * @param {object} db  - pg Pool or PoolClient
+ * @param {string} quoteId
+ * @returns {Promise<number>} subtotal (ex-GST, rounded up per unit)
+ */
+async function calcSummarySubtotal(db, quoteId) {
+  const { rows: [hdr] } = await db.query(
+    `SELECT margin, waste_pct FROM qb_quote_headers WHERE id = $1`, [quoteId]
+  );
+  if (!hdr) return 0;
+
+  const { rows: units } = await db.query(`
+    SELECT u.quantity,
+           u.admin_hours, u.cnc_hours, u.edgebander_hours, u.assembly_hours,
+           u.delivery_hours, u.installation_hours,
+           u.admin_rate, u.cnc_rate, u.edgebander_rate, u.assembly_rate,
+           u.delivery_rate, u.installation_rate,
+           u.subtrade_margin,
+           COALESCE(m.s, 0) AS mat_sub,
+           COALESCE(w.s, 0) AS hw_sub,
+           COALESCE(sub.s, 0) AS subtrade_cost
+    FROM qb_quote_units u
+    LEFT JOIN (
+      SELECT unit_id, SUM(total) AS s FROM qb_quote_unit_lines
+      WHERE category = 'Materials' GROUP BY unit_id
+    ) m ON m.unit_id = u.id
+    LEFT JOIN (
+      SELECT unit_id, SUM(total) AS s FROM qb_quote_unit_lines
+      WHERE category = 'Hardware' GROUP BY unit_id
+    ) w ON w.unit_id = u.id
+    LEFT JOIN (
+      SELECT unit_id, SUM(CASE WHEN mode='fixed' THEN cost ELSE quantity * rate END) AS s
+      FROM qb_unit_subtrades GROUP BY unit_id
+    ) sub ON sub.unit_id = u.id
+    WHERE u.quote_id = $1
+  `, [quoteId]);
+
+  const margin   = Number(hdr.margin);
+  const wastePct = Number(hdr.waste_pct);
+  let subtotal = 0;
+  for (const u of units) {
+    const labour      = Number(u.admin_hours)       * Number(u.admin_rate) +
+                        Number(u.cnc_hours)          * Number(u.cnc_rate) +
+                        Number(u.edgebander_hours)   * Number(u.edgebander_rate) +
+                        Number(u.assembly_hours)     * Number(u.assembly_rate) +
+                        Number(u.delivery_hours)     * Number(u.delivery_rate) +
+                        Number(u.installation_hours) * Number(u.installation_rate);
+    const subtradeSell = Number(u.subtrade_cost) * (1 + Number(u.subtrade_margin));
+    const unitCost     = (Number(u.mat_sub) * (1 + wastePct) + Number(u.hw_sub) + labour) * (1 + margin) + subtradeSell;
+    subtotal += Math.ceil(unitCost * Number(u.quantity));
+  }
+  return subtotal;
+}
+
 async function fetchFull(id) {
   const { rows: [header] } = await pool.query(
     `SELECT h.*,
@@ -338,37 +397,12 @@ async function _upsertFull(quoteId, body, client) {
     }
   }
 
-  // Write calculated subtotal (ex-GST) back to quotes.value when linked
+  // Write Summary-page subtotal (ex-GST) back to quotes.value when linked
   const { rows: [hdr] } = await client.query(
-    'SELECT quote_id, margin, waste_pct FROM qb_quote_headers WHERE id = $1', [quoteId]
+    'SELECT quote_id FROM qb_quote_headers WHERE id = $1', [quoteId]
   );
   if (hdr?.quote_id) {
-    const { rows: [tot] } = await client.query(`
-      SELECT COALESCE(SUM(
-        (
-          (COALESCE(m.s, 0) * (1 + $2::numeric) + COALESCE(w.s, 0) +
-           (u.admin_hours * u.admin_rate + u.cnc_hours * u.cnc_rate +
-            u.edgebander_hours * u.edgebander_rate + u.assembly_hours * u.assembly_rate +
-            u.delivery_hours * u.delivery_rate + u.installation_hours * u.installation_rate)
-          ) * (1 + $3::numeric)
-          + COALESCE(sub.s, 0) * (1 + u.subtrade_margin)
-        ) * u.quantity
-      ), 0) AS subtotal
-      FROM qb_quote_units u
-      LEFT JOIN (
-        SELECT unit_id, SUM(total) AS s FROM qb_quote_unit_lines WHERE category = 'Materials' GROUP BY unit_id
-      ) m ON m.unit_id = u.id
-      LEFT JOIN (
-        SELECT unit_id, SUM(total) AS s FROM qb_quote_unit_lines WHERE category = 'Hardware' GROUP BY unit_id
-      ) w ON w.unit_id = u.id
-      LEFT JOIN (
-        SELECT unit_id,
-               SUM(CASE WHEN mode='fixed' THEN cost ELSE quantity * rate END) AS s
-        FROM qb_unit_subtrades GROUP BY unit_id
-      ) sub ON sub.unit_id = u.id
-      WHERE u.quote_id = $1
-    `, [quoteId, hdr.waste_pct, hdr.margin]);
-    // Sync value, client_name, and status back to the linked JT quote
+    const summarySubtotal = await calcSummarySubtotal(client, quoteId);
     const { rows: [qbHdr] } = await client.query(
       `SELECT h.status, c.name FROM qb_quote_headers h LEFT JOIN qb_contacts c ON h.client_id = c.id WHERE h.id = $1`,
       [quoteId]
@@ -376,7 +410,7 @@ async function _upsertFull(quoteId, body, client) {
     const jtStatus = { draft: 'pending', sent: 'review', submitted: 'review', accepted: 'accepted', declined: 'declined', locked: 'pending' }[qbHdr?.status] || 'pending';
     await client.query(
       'UPDATE quotes SET value = $1, client_name = COALESCE($2, client_name), status = $3 WHERE id = $4',
-      [Number(tot.subtotal), qbHdr?.name || null, jtStatus, hdr.quote_id]
+      [summarySubtotal, qbHdr?.name || null, jtStatus, hdr.quote_id]
     );
   }
 
@@ -1098,24 +1132,8 @@ async function syncRates(req, res) {
 
     // Recalculate write-back to quotes.value when linked to job tracker
     if (header.quote_id) {
-      const { rows: [tot] } = await client.query(`
-        SELECT COALESCE(SUM(
-          (COALESCE(m.s, 0) * (1 + $2::numeric) + COALESCE(w.s, 0) +
-           (u.admin_hours * u.admin_rate + u.cnc_hours * u.cnc_rate +
-            u.edgebander_hours * u.edgebander_rate + u.assembly_hours * u.assembly_rate +
-            u.delivery_hours * u.delivery_rate + u.installation_hours * u.installation_rate)
-          ) * (1 + $3::numeric) * u.quantity
-        ), 0) AS subtotal
-        FROM qb_quote_units u
-        LEFT JOIN (
-          SELECT unit_id, SUM(total) AS s FROM qb_quote_unit_lines WHERE category = 'Materials' GROUP BY unit_id
-        ) m ON m.unit_id = u.id
-        LEFT JOIN (
-          SELECT unit_id, SUM(total) AS s FROM qb_quote_unit_lines WHERE category = 'Hardware' GROUP BY unit_id
-        ) w ON w.unit_id = u.id
-        WHERE u.quote_id = $1
-      `, [id, header.waste_pct, header.margin]);
-      await client.query('UPDATE quotes SET value = $1 WHERE id = $2', [Number(tot.subtotal), header.quote_id]);
+      const summarySubtotal = await calcSummarySubtotal(client, id);
+      await client.query('UPDATE quotes SET value = $1 WHERE id = $2', [summarySubtotal, header.quote_id]);
     }
 
     await client.query('COMMIT');
