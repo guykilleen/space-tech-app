@@ -6,7 +6,7 @@ Last updated: 2026-04-14
 
 ## Major Features
 
-- [ ] **Quote register value column** — Change the `value` column in the QB quotes list to reference the Summary total, not the Budget Quantity total
+- [x] **Quote register value column** — Change the `value` column in the QB quotes list to reference the Summary total, not the Budget Quantity total
 - [ ] **Summary page rounding** — Only round up the Unit Price on the Summary page; the displayed Total must equal Qty × Unit Price exactly (no separate rounding on Total)
 - [ ] **Job creation email notification** — Send an email when a new job is created (recipient TBD)
 - [ ] **Job creation hours export** — Export for hours quantity when a job is created (format TBD)
