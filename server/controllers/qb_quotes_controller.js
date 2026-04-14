@@ -58,7 +58,7 @@ async function calcSummarySubtotal(db, quoteId) {
                         Number(u.installation_hours) * Number(u.installation_rate);
     const subtradeSell = Number(u.subtrade_cost) * (1 + Number(u.subtrade_margin));
     const unitCost     = (Number(u.mat_sub) * (1 + wastePct) + Number(u.hw_sub) + labour) * (1 + margin) + subtradeSell;
-    subtotal += Math.ceil(unitCost * Number(u.quantity));
+    subtotal += Math.ceil(unitCost) * Number(u.quantity);
   }
   return subtotal;
 }
@@ -162,8 +162,8 @@ async function getAll(req, res) {
                   u.delivery_hours * u.delivery_rate + u.installation_hours * u.installation_rate)
                 ) * (1 + h.margin)
                 + COALESCE(sub.s, 0) * (1 + u.subtrade_margin)
-              ) * u.quantity
-            )
+              )
+            ) * u.quantity
           ), 0)
           FROM qb_quote_units u
           LEFT JOIN (
@@ -572,7 +572,7 @@ async function getSummary(req, res) {
                            Number(u.installation_hours)  * Number(u.installation_rate);
       const subtradeSell = subtradeCost * (1 + Number(u.subtrade_margin));
       const unitCost     = (matSub * (1 + wastePct) + hwSub + labourSub) * (1 + margin) + subtradeSell;
-      const total        = Math.ceil(unitCost * Number(u.quantity));
+      const total        = Math.ceil(unitCost) * Number(u.quantity);
       subtotal += total;
       return { ...u, labour_sub: labourSub, subtrade_sell: subtradeSell, unit_cost: Math.ceil(unitCost), total };
     });
