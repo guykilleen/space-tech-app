@@ -10,3 +10,4 @@ build/
 dist/
 .DS_Store
 *.pdf
+client/public/spacetech_logo_original.png
