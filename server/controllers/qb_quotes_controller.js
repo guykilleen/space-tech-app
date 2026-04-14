@@ -154,14 +154,16 @@ async function getAll(req, res) {
         c.company AS client_company,
         (
           SELECT COALESCE(SUM(
-            (
-              (COALESCE(m.s, 0) * (1 + h.waste_pct) + COALESCE(w.s, 0) +
-               (u.admin_hours * u.admin_rate + u.cnc_hours * u.cnc_rate +
-                u.edgebander_hours * u.edgebander_rate + u.assembly_hours * u.assembly_rate +
-                u.delivery_hours * u.delivery_rate + u.installation_hours * u.installation_rate)
-              ) * (1 + h.margin)
-              + COALESCE(sub.s, 0) * (1 + u.subtrade_margin)
-            ) * u.quantity
+            CEIL(
+              (
+                (COALESCE(m.s, 0) * (1 + h.waste_pct) + COALESCE(w.s, 0) +
+                 (u.admin_hours * u.admin_rate + u.cnc_hours * u.cnc_rate +
+                  u.edgebander_hours * u.edgebander_rate + u.assembly_hours * u.assembly_rate +
+                  u.delivery_hours * u.delivery_rate + u.installation_hours * u.installation_rate)
+                ) * (1 + h.margin)
+                + COALESCE(sub.s, 0) * (1 + u.subtrade_margin)
+              ) * u.quantity
+            )
           ), 0)
           FROM qb_quote_units u
           LEFT JOIN (
