@@ -1,0 +1,20 @@
+We are building a joinery business management app for Space Tech Design Pty Ltd in Brisbane.
+Tech stack: React frontend, Node.js/Express backend, PostgreSQL on Neon, deployed on Railway. GitHub repo: guykilleen/space-tech-app. Live URL: space-tech-app-production.up.railway.app.
+Two apps in one:
+
+Job Tracker — quote register, project tracking, WIP, Gantt chart
+Quote Builder — unit-based estimating, materials/labour/subtrades, PDF quotes
+
+Important rules for this session:
+
+Pause and ask me before starting each new feature
+Pause and ask me after completing database changes before touching the frontend
+Remind me to run migrations against Neon production database after any schema changes
+Remind me to write tests after each new feature is complete
+Always run npm test before marking anything as done
+
+Last session we completed:
+
+minor changes to the quote builder with status drop down exclusion in locked state
+
+This session I want to make optimise the quote builder for iphone

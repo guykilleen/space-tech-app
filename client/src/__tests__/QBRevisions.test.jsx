@@ -4,7 +4,8 @@
  * Tests for the QB quote revision system:
  *  1. buildDisplayList — pure grouping logic from QBQuotesListPage
  *  2. QB Builder read-only mode — fieldset disabled, Revise button shown,
- *     Save button hidden when quote is loaded with a non-draft status
+ *     Save button hidden only for accepted/locked quotes.
+ *     Draft, pending, sent, and submitted quotes remain fully editable.
  */
 
 import React from 'react';
@@ -182,13 +183,13 @@ describe('QB Builder — read-only mode for non-draft statuses', () => {
     expect(fieldsets.length).toBe(0);
   });
 
-  it('sent quote: Revise button is visible and Save Quote is hidden', async () => {
+  it('sent quote: Save button and Revise button are both visible', async () => {
+    // Sent quotes are editable (Save shown) but also have Revise to create a new numbered revision
     renderExistingQuote('sent');
-    // "Revise" appears in both desktop action bar and mobile save bar
     await waitFor(() => {
-      expect(screen.getAllByRole('button', { name: /revise/i }).length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Save Quote').length).toBeGreaterThan(0);
     });
-    expect(screen.queryByText('Save Quote')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /revise/i }).length).toBeGreaterThan(0);
   });
 
   it('accepted quote: Revise button is visible and Save Quote is hidden', async () => {
@@ -207,17 +208,21 @@ describe('QB Builder — read-only mode for non-draft statuses', () => {
     expect(screen.queryByText('Save Quote')).not.toBeInTheDocument();
   });
 
-  it('sent quote: read-only banner is displayed', async () => {
+  it('sent quote: soft-lock banner is displayed (not hard-lock)', async () => {
+    // Sent quotes show a soft-lock banner instructing user to revert to Draft
     renderExistingQuote('sent');
     await waitFor(() => {
-      expect(screen.getByText(/cannot be edited/i)).toBeInTheDocument();
+      expect(screen.getAllByText('Save Quote').length).toBeGreaterThan(0);
     });
+    expect(screen.queryByText(/cannot be edited/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/fields are locked/i)).toBeInTheDocument();
   });
 
-  it('sent quote: form fieldset is disabled', async () => {
+  it('sent quote: form fieldset is disabled (soft-locked)', async () => {
+    // Sent quotes lock the unit fieldset so pricing cannot be changed without a revision
     renderExistingQuote('sent');
     await waitFor(() => {
-      expect(screen.getAllByRole('button', { name: /revise/i }).length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Save Quote').length).toBeGreaterThan(0);
     });
     const disabledFieldsets = document.querySelectorAll('fieldset[disabled]');
     expect(disabledFieldsets.length).toBeGreaterThan(0);
