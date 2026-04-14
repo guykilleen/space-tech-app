@@ -20,7 +20,7 @@ Last updated: 2026-04-14
 
 ## Minor Changes
 
-- [ ] **Custom app icon** — Replace default favicon/PWA icon with a Space Tech Design branded icon
+- [x] **Custom app icon** — Replace default favicon/PWA icon with a Space Tech Design branded icon
 - [ ] **Labour Hours row height** — Reduce by 25%
 - [ ] **Subtrades row height** — Reduce by 25%
 - [ ] **Unit line item banner** — Change the "Product / Category / Qty / Price / UOM / Total" column header banner inside each Unit to match the style of all other banners throughout the app
