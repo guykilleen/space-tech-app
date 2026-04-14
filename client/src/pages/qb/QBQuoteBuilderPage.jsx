@@ -101,16 +101,17 @@ function fmtMoney(v) {
   return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(v || 0);
 }
 
-// Labour rates come from the global price list only — no per-unit overrides
-function unitCalc(unit, margin, wastePct, labourRates) {
-  const R = (type) => Number(labourRates[type] ?? 100);
+// Labour costs always use the rate snapshotted onto each unit at creation time
+// (admin_rate, cnc_rate, etc. stored on qb_quote_units), so existing quotes are
+// never affected by future changes to the global price list.
+function unitCalc(unit, margin, wastePct) {
   const matSub    = unit.lines.reduce((s, l) =>
     l.category === 'Materials' ? s + (Number(l.price) * Number(l.quantity)) : s, 0);
   const hwSub     = unit.lines.reduce((s, l) =>
     l.category === 'Hardware'  ? s + (Number(l.price) * Number(l.quantity)) : s, 0);
   const wasteSub  = matSub * (Number(wastePct) / 100);
-  const labourSub = LABOUR_FIELDS.reduce((s, { hoursField, type }) =>
-    s + Number(unit[hoursField] ?? 0) * R(type), 0);
+  const labourSub = LABOUR_FIELDS.reduce((s, { hoursField, rateField }) =>
+    s + Number(unit[hoursField] ?? 0) * Number(unit[rateField] ?? 100), 0);
   const subtradeCost = (unit.subtrades || []).reduce((s, st) =>
     s + (st.mode === 'qty_rate'
       ? (Number(st.quantity) || 0) * (Number(st.rate) || 0)
@@ -517,19 +518,21 @@ export default function QBQuoteBuilderPage() {
           assembly_hours:     Number(u.assembly_hours)     || 0,
           delivery_hours:     Number(u.delivery_hours)     || 0,
           installation_hours: Number(u.installation_hours) || 0,
-          // Rates always come from the global price list
-          admin_rate:        Number(labourRates.admin        ?? 100),
-          cnc_rate:          Number(labourRates.cnc          ?? 100),
-          edgebander_rate:   Number(labourRates.edgebander   ?? 100),
-          assembly_rate:     Number(labourRates.assembly     ?? 100),
-          delivery_rate:     Number(labourRates.delivery     ?? 100),
-          installation_rate: Number(labourRates.installation ?? 100),
-          admin_rate_overridden:        false,
-          cnc_rate_overridden:          false,
-          edgebander_rate_overridden:   false,
-          assembly_rate_overridden:     false,
-          delivery_rate_overridden:     false,
-          installation_rate_overridden: false,
+          // For NEW units, snapshot the current live rates so future price-list changes
+          // don't affect this quote. For EXISTING units, send null so the backend
+          // COALESCE preserves the rate already stored in the DB — never overwrite snapshots.
+          admin_rate:        u.id ? null : Number(labourRates.admin        ?? 100),
+          cnc_rate:          u.id ? null : Number(labourRates.cnc          ?? 100),
+          edgebander_rate:   u.id ? null : Number(labourRates.edgebander   ?? 100),
+          assembly_rate:     u.id ? null : Number(labourRates.assembly     ?? 100),
+          delivery_rate:     u.id ? null : Number(labourRates.delivery     ?? 100),
+          installation_rate: u.id ? null : Number(labourRates.installation ?? 100),
+          admin_rate_overridden:        u.id ? null : false,
+          cnc_rate_overridden:          u.id ? null : false,
+          edgebander_rate_overridden:   u.id ? null : false,
+          assembly_rate_overridden:     u.id ? null : false,
+          delivery_rate_overridden:     u.id ? null : false,
+          installation_rate_overridden: u.id ? null : false,
           subtrade_margin: Number(u.subtrade_margin || 0) / 100,
           subtrades: (u.subtrades || []).map(st => ({
             type:     st.type,
@@ -966,8 +969,8 @@ export default function QBQuoteBuilderPage() {
             <div className={styles.labourSection}>
               <div className={styles.labourTitle}>Labour Hours</div>
               <div className={styles.labourRow}>
-                {LABOUR_FIELDS.map(({ hoursField, type, label }, fi) => {
-                  const rate  = Number(labourRates[type] ?? 100);
+                {LABOUR_FIELDS.map(({ hoursField, rateField, label }, fi) => {
+                  const rate  = Number(unit[rateField] ?? 100);
                   const hours = Number(unit[hoursField] ?? 0);
                   return (
                     <div key={hoursField} className={styles.labourField}>

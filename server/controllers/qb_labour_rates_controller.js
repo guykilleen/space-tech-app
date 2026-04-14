@@ -28,7 +28,7 @@ async function updateRate(req, res) {
     const { rows } = await pool.query(
       `INSERT INTO labour_rates (type, hourly_rate)
        VALUES ($1, $2)
-       ON CONFLICT (type) DO UPDATE SET hourly_rate = EXCLUDED.hourly_rate, updated_at = NOW()
+       ON CONFLICT (type) DO UPDATE SET hourly_rate = EXCLUDED.hourly_rate
        RETURNING type, hourly_rate`,
       [type, Number(hourly_rate)]
     );

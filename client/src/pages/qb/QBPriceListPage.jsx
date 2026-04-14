@@ -258,6 +258,7 @@ export default function QBPriceListPage() {
                 </td>
                 <td>
                   <button
+                    type="button"
                     className="smbtn smbtn-save"
                     onClick={() => saveLabourRate(type)}
                     disabled={parseFloat(labourEdit[type]) === labourRates[type]}
