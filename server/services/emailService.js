@@ -87,7 +87,7 @@ async function sendJobNotification(job) {
     `;
 
     await resend.emails.send({
-      from: 'onboarding@resend.dev',
+      from: 'jobs@mcdonoughdesign.com.au',
       to: toEmail,
       subject,
       html,
