@@ -294,7 +294,7 @@ export default function QuotesPage() {
                     <span className="mobile-card-number">{q.quote_number || '—'}</span>
                     {badge(q.status)}
                   </div>
-                  <div className="mobile-card-client">{q.client_name || '—'}</div>
+                  <div className="mobile-card-client">{q.client_company || '—'}</div>
                   <div className="mobile-card-project">{q.project || 'No project name'}</div>
                   <div className="mobile-card-meta">
                     <span className="mobile-card-value">{fmtMoney(q.value)}</span>
