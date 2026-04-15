@@ -1,4 +1,5 @@
 const pool = require('../config/db');
+const { sendJobNotification } = require('../services/emailService');
 
 // Parse job number into {base, sub} — e.g. "48" → {48,0}, "48_1" → {48,1}
 function parseJobNum(job) {
@@ -126,6 +127,7 @@ async function create(req, res) {
     );
     await client.query('COMMIT');
     res.status(201).json(rows[0]);
+    sendJobNotification(rows[0]);
   } catch (err) {
     await client.query('ROLLBACK');
     if (err.code === '23505') return res.status(409).json({ error: 'Job number already exists' });
@@ -283,6 +285,7 @@ async function convertFromQuote(req, res) {
       );
       await client.query('COMMIT');
       res.status(201).json(rows[0]);
+      sendJobNotification(rows[0]);
     } catch (err) {
       await client.query('ROLLBACK');
       throw err;

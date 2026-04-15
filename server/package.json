@@ -29,7 +29,8 @@
     "multer": "^2.0.0",
     "pg": "^8.11.3",
     "puppeteer": "^24.40.0",
-    "puppeteer-core": "^24.40.0"
+    "puppeteer-core": "^24.40.0",
+    "resend": "^6.11.0"
   },
   "devDependencies": {
     "jest": "^30.3.0",
