@@ -857,6 +857,10 @@
   }
   .unitMeta { gap: 10px; }
   .unitField { min-width: 0; flex: 1 1 calc(50% - 5px); }
+  /* Level, Description, Qty — each on their own full-width row */
+  .unitMeta .unitField:nth-child(3) { flex: 1 1 100%; }
+  .unitMeta .unitField:nth-child(4) { flex: 1 1 100% !important; }
+  .unitMeta .unitField:nth-child(5) { flex: 1 1 100%; width: auto; }
   .removeUnit { position: absolute; top: 12px; right: 12px; }
 
   /* Lines table — horizontal scroll */
