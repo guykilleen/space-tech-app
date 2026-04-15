@@ -53,11 +53,14 @@ async function getAll(req, res) {
               q.accept_date  AS quote_accept_date,
               q.initials     AS quote_initials,
               pj.job_number  AS parent_job_number,
-              u.name         AS created_by_name
+              u.name         AS created_by_name,
+              c.company      AS client_company
        FROM jobs j
        LEFT JOIN quotes q  ON j.quote_id = q.id
        LEFT JOIN jobs pj   ON j.parent_job_id = pj.id
        LEFT JOIN users u   ON j.created_by = u.id
+       LEFT JOIN qb_quote_headers h ON h.quote_id = q.id
+       LEFT JOIN qb_contacts c ON h.client_id = c.id
        ${whereClause}
        ORDER BY j.job_number`,
       params

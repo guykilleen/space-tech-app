@@ -36,8 +36,12 @@ async function getAll(req, res) {
   const whereClause = where.length ? 'WHERE ' + where.join(' AND ') : '';
   try {
     const { rows } = await pool.query(
-      `SELECT q.*, u.name AS created_by_name
-       FROM quotes q LEFT JOIN users u ON q.created_by = u.id
+      `SELECT q.*, u.name AS created_by_name,
+              c.company AS client_company
+       FROM quotes q
+       LEFT JOIN users u ON q.created_by = u.id
+       LEFT JOIN qb_quote_headers h ON h.quote_id = q.id
+       LEFT JOIN qb_contacts c ON h.client_id = c.id
        ${whereClause}
        ORDER BY q.quote_number DESC`,
       params

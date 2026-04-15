@@ -102,7 +102,7 @@ export default function JobsPage() {
           <table className="std-table">
             <thead>
               <tr>
-                <th>Job #</th><th>Quote #</th><th>Client</th><th>Project</th>
+                <th>Job #</th><th>Quote #</th><th>Project</th><th>Company</th>
                 <th>Admin/Draw</th><th>Machining</th><th>Assembly</th><th>Delivery</th><th>Install</th>
                 <th>Total Hrs</th><th>Actions</th>
               </tr>
@@ -118,8 +118,8 @@ export default function JobsPage() {
                         <strong>{j.job_number || '—'}</strong>
                       </td>
                       <td>{j.quote_number || '—'}</td>
-                      <td>{j.client_name || '—'}</td>
                       <td>{j.project || '—'}</td>
+                      <td>{j.client_company || '—'}</td>
                       <td>{parseFloat(j.hours_admin||0).toFixed(1)}</td>
                       <td>{parseFloat(j.hours_machining||0).toFixed(1)}</td>
                       <td>{parseFloat(j.hours_assembly||0).toFixed(1)}</td>

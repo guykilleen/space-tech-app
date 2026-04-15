@@ -142,7 +142,7 @@ export default function QuotesPage() {
           <table className="std-table">
             <thead>
               <tr>
-                <th>Quote #</th><th>By</th><th>Date</th><th>Client</th><th>Project</th>
+                <th>Quote #</th><th>By</th><th>Date</th><th>Project</th><th>Company</th>
                 <th>Value</th><th>Status</th><th>Acceptance</th><th>Accepted</th><th>Actions</th>
               </tr>
             </thead>
@@ -175,8 +175,8 @@ export default function QuotesPage() {
                     </td>
                     <td>{q.initials || '—'}</td>
                     <td>{fmtDate(q.date)}</td>
-                    <td>{q.client_name || '—'}</td>
                     <td>{q.project || '—'}</td>
+                    <td>{q.client_company || '—'}</td>
                     <td className="currency">{fmtMoney(q.value)}</td>
                     <td>{badge(q.status)}</td>
                     <td>{q.accept_details || '—'}</td>

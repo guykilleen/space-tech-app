@@ -165,12 +165,12 @@ export default function QBQuotesListPage() {
             <thead>
               <tr>
                 <th>Quote #</th>
-                <th>Date</th>
-                <th>Client</th>
-                <th>Company</th>
-                <th>Project</th>
                 <th>Prepared By</th>
-                <th>Value (ex GST)</th>
+                <th>Date</th>
+                <th>Project</th>
+                <th>Company</th>
+                <th>Client</th>
+                <th>Value (Ex GST)</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
@@ -207,11 +207,11 @@ export default function QBQuotesListPage() {
                       </span>
                     )}
                   </td>
-                  <td>{fmtDate(q.date)}</td>
-                  <td>{q.client_name    || '—'}</td>
-                  <td>{q.client_company || '—'}</td>
-                  <td>{q.project        || '—'}</td>
                   <td>{q.prepared_by    || '—'}</td>
+                  <td>{fmtDate(q.date)}</td>
+                  <td>{q.project        || '—'}</td>
+                  <td>{q.client_company || '—'}</td>
+                  <td>{q.client_name    || '—'}</td>
                   <td className="currency">{fmtMoney(q.subtotal_ex_gst)}</td>
                   <td>
                     <span className={`badge ${STATUS_BADGE[q.status] || 'b-pending'}`}>
