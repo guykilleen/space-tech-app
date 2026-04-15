@@ -1,8 +1,6 @@
 const { Resend } = require('resend');
 const pool = require('../config/db');
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 async function getProductionManagerEmail() {
   const name = process.env.PRODUCTION_MANAGER_NAME;
   if (!name) {
@@ -34,8 +32,14 @@ function formatDate(val) {
 
 async function sendJobNotification(job) {
   try {
+    if (!process.env.RESEND_API_KEY) {
+      console.warn('[emailService] RESEND_API_KEY not set — skipping email');
+      return;
+    }
     const toEmail = await getProductionManagerEmail();
     if (!toEmail) return;
+
+    const resend = new Resend(process.env.RESEND_API_KEY);
 
     const totalHours =
       (parseFloat(job.hours_admin)     || 0) +
