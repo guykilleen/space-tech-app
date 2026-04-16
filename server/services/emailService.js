@@ -175,4 +175,4 @@ async function sendJobNotification(job) {
   }
 }
 
-module.exports = { sendJobNotification };
+module.exports = { sendJobNotification, buildJobCsv };
