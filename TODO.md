@@ -1,6 +1,6 @@
 # Space Tech Design — Build To-Do List
 
-Last updated: 2026-04-14
+Last updated: 2026-04-17
 
 ---
 
@@ -9,7 +9,7 @@ Last updated: 2026-04-14
 - [x] **Quote register value column** — Change the `value` column in the QB quotes list to reference the Summary total, not the Budget Quantity total
 - [x] **Summary page rounding** — Only round up the Unit Price on the Summary page; the displayed Total must equal Qty × Unit Price exactly (no separate rounding on Total)
 - [x] **Job creation email notification** — Send an email when a new job is created (recipient TBD)
-- [ ] **Job creation hours export** — Export for hours quantity when a job is created (format TBD)
+- [x] **Job creation hours export** — CSV attachment on job notification email to Brenden (job-[number].csv, 15-column format matching his Replit app)
 - [ ] **Voice API** — Voice-to-text input in the Quote Builder using OpenAI Whisper (primary) with Web Speech API fallback (offline). Scope:
   - Microphone button on list pages for voice search/filter
   - Microphone buttons on quantity fields in the quote builder for speaking numbers
