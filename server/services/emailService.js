@@ -30,6 +30,59 @@ function formatDate(val) {
   return d.toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
+// DD/MM/YYYY format for CSV
+function formatDateCsv(val) {
+  if (!val) return '';
+  const d = new Date(val);
+  if (isNaN(d)) return '';
+  const day   = String(d.getUTCDate()).padStart(2, '0');
+  const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const year  = d.getUTCFullYear();
+  return `${day}/${month}/${year}`;
+}
+
+function csvCell(val) {
+  const s = val == null ? '' : String(val);
+  // Wrap in quotes if the value contains a comma, quote, or newline
+  if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+    return `"${s.replace(/"/g, '""')}"`;
+  }
+  return s;
+}
+
+function buildJobCsv(job, contact = {}) {
+  const dueDate = formatDateCsv(job.wip_due);
+  const productionHours  = (parseFloat(job.hours_machining) || 0) + (parseFloat(job.hours_assembly)  || 0);
+  const deliveryInstHours = (parseFloat(job.hours_delivery)  || 0) + (parseFloat(job.hours_install)   || 0);
+
+  const headers = [
+    'project_name', 'location', 'client_name', 'client_email', 'client_phone',
+    'start_date', 'due_date', 'estimated_installation_date',
+    'administration_hours', 'production_hours', 'assembly_hours',
+    'delivery_dispatch_installation_hours', 'description', 'notes', 'status',
+  ];
+
+  const values = [
+    job.project       || '',
+    '',                                          // location — blank
+    job.client_name   || '',
+    contact.email     || '',
+    contact.phone     || '',
+    '',                                          // start_date — blank
+    dueDate,
+    dueDate,                                     // estimated_installation_date = due_date
+    formatHours(job.hours_admin),
+    formatHours(productionHours),
+    formatHours(job.hours_assembly),
+    formatHours(deliveryInstHours),
+    '',                                          // description — blank
+    '',                                          // notes — blank
+    'future',
+  ];
+
+  return headers.map(csvCell).join(',') + '\n' + values.map(csvCell).join(',') + '\n';
+}
+
 async function sendJobNotification(job) {
   try {
     if (!process.env.RESEND_API_KEY) {
@@ -38,6 +91,20 @@ async function sendJobNotification(job) {
     }
     const toEmail = await getProductionManagerEmail();
     if (!toEmail) return;
+
+    // Fetch contact details (email + phone) via the linked QB quote, if available
+    let contact = {};
+    if (job.quote_id) {
+      const { rows: cRows } = await pool.query(
+        `SELECT c.email, c.phone
+         FROM qb_quote_headers h
+         JOIN qb_contacts c ON c.id = h.client_id
+         WHERE h.quote_id = $1
+         LIMIT 1`,
+        [job.quote_id]
+      );
+      if (cRows[0]) contact = cRows[0];
+    }
 
     const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -86,14 +153,23 @@ async function sendJobNotification(job) {
       </div>
     `;
 
+    const csvContent = buildJobCsv(job, contact);
+    const csvFilename = `job-${job.job_number}.csv`;
+
     await resend.emails.send({
       from: 'jobs@mcdonoughdesign.com.au',
       to: toEmail,
       subject,
       html,
+      attachments: [
+        {
+          filename: csvFilename,
+          content: Buffer.from(csvContent),
+        },
+      ],
     });
 
-    console.log(`[emailService] Job notification sent to ${toEmail} for job #${job.job_number}`);
+    console.log(`[emailService] Job notification sent to ${toEmail} for job #${job.job_number} (attachment: ${csvFilename})`);
   } catch (err) {
     console.error('[emailService] Failed to send job notification:', err.message);
   }
