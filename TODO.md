@@ -1,6 +1,6 @@
 # Space Tech Design — Build To-Do List
 
-Last updated: 2026-04-17
+Last updated: 2026-04-18
 
 ---
 
@@ -15,6 +15,13 @@ Last updated: 2026-04-17
   - Microphone buttons on quantity fields in the quote builder for speaking numbers
   - iPhone: prominent, touch-friendly mic button
   - Add `OPENAI_API_KEY` to `server/.env` and `.env.example`
+
+---
+
+## Test Debt
+
+- [ ] **Local test DB migration** — Apply `parent_quote_id` migration to local test database so the 37 blocked server tests can run
+- [ ] **Duplicate Save button** — Fix the duplicate Save button causing 1 failing client test (`locked quote: Revise button is visible and Save Quote is hidden`)
 
 ---
 
