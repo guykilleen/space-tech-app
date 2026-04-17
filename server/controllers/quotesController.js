@@ -104,7 +104,7 @@ async function getOne(req, res) {
 async function create(req, res) {
   const {
     quote_number, initials, date, client_name, project,
-    value = 0, status = 'pending', accept_details, accept_date
+    value = 0, status = 'draft', accept_details, accept_date
   } = req.body;
 
   if (!client_name) return res.status(400).json({ error: 'client_name is required' });
@@ -167,7 +167,7 @@ async function update(req, res) {
 
 async function updateStatus(req, res) {
   const { status } = req.body;
-  const valid = ['pending','review','accepted','declined'];
+  const valid = ['draft','sent','accepted'];
   if (!valid.includes(status)) return res.status(400).json({ error: 'Invalid status' });
   try {
     const { rows } = await pool.query(

@@ -5,20 +5,14 @@ import api from '../../utils/api';
 import styles from '../Page.module.css';
 
 const STATUS_LABELS = {
-  draft:     'Draft',
-  sent:      'Sent',
-  submitted: 'Submitted',
-  accepted:  'Accepted',
-  declined:  'Declined',
-  locked:    'Locked',
+  draft:    'Draft',
+  sent:     'Sent',
+  accepted: 'Accepted',
 };
 const STATUS_BADGE = {
-  draft:     'b-pending',
-  sent:      'b-review',
-  submitted: 'b-review',
-  accepted:  'b-accepted',
-  declined:  'b-declined',
-  locked:    'b-locked',
+  draft:    'b-pending',
+  sent:     'b-review',
+  accepted: 'b-accepted',
 };
 
 function fmtDate(v) {
@@ -129,7 +123,7 @@ export default function QBQuotesListPage() {
     return (
       <div style={{ display: 'flex', gap: 4 }}>
         <button className="act-btn edit" onClick={wrap(() => navigate(`/qb/quotes/${q.id}`))}>
-          {['submitted', 'sent', 'accepted', 'locked'].includes(q.status) ? 'View' : 'Edit'}
+          {['sent', 'accepted'].includes(q.status) ? 'View' : 'Edit'}
         </button>
         <button className="act-btn edit" onClick={wrap(() => navigate(`/qb/quotes/${q.id}/summary`))}>Summary</button>
         <button className="act-btn del"  onClick={wrap(() => handleDelete(q.id, q.quote_number))}>Del</button>
@@ -184,7 +178,7 @@ export default function QBQuotesListPage() {
                   style={{
                     cursor: 'pointer',
                     background: isChild ? 'rgba(200,169,110,.04)' : undefined,
-                    opacity: q.status === 'locked' ? 0.65 : 1,
+                    opacity: 1,
                   }}
                   onClick={() => navigate(`/qb/quotes/${q.id}`)}
                 >
@@ -239,7 +233,7 @@ export default function QBQuotesListPage() {
                 <div
                   key={q.id}
                   className="mobile-card"
-                  style={{ opacity: q.status === 'locked' ? 0.65 : 1, marginLeft: isChild ? 16 : 0 }}
+                  style={{ opacity: 1, marginLeft: isChild ? 16 : 0 }}
                   onClick={() => navigate(`/qb/quotes/${q.id}`)}
                 >
                   <div className="mobile-card-top">
@@ -267,7 +261,7 @@ export default function QBQuotesListPage() {
                   </div>
                   <div className="mobile-card-actions" onClick={e => e.stopPropagation()}>
                     <button className="act-btn edit" onClick={() => navigate(`/qb/quotes/${q.id}`)}>
-                      {['submitted', 'sent', 'accepted', 'locked'].includes(q.status) ? 'View' : 'Edit'}
+                      {['sent', 'accepted'].includes(q.status) ? 'View' : 'Edit'}
                     </button>
                     <button className="act-btn edit" onClick={() => navigate(`/qb/quotes/${q.id}/summary`)}>Summary</button>
                     <button className="act-btn del"  onClick={() => handleDelete(q.id, q.quote_number)}>Delete</button>

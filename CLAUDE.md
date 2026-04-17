@@ -89,3 +89,5 @@ All migrations must be run against the Neon production database manually via the
 | `server/db/migrate_subtrades.js` | Creates `qb_unit_subtrades` table; adds `subtrade_margin` to `qb_quote_units` | ✅ Applied |
 | `server/db/qb_add_polytec_wm.js` | Seeds Polytec Woodmatt price list entries | ✅ Applied |
 | `server/db/qb_migrate_revisions.js` | Adds `parent_quote_id`, `revision_suffix`, `revision_sequence` to `qb_quote_headers`; extends status CHECK to include `submitted` and `locked` | ✅ Applied |
+| `server/db/migrate_quotes_status_simplify.js` | Migrates `quotes.status` to `draft\|sent\|accepted` only (pending→draft, review→sent, declined→sent); updates CHECK constraint | ⏳ Pending |
+| `server/db/migrate_qb_status_simplify.js` | Migrates `qb_quote_headers.status` to `draft\|sent\|accepted` only (submitted→sent, declined→sent, locked→accepted); updates CHECK constraint | ⏳ Pending |

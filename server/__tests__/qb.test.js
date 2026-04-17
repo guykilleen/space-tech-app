@@ -800,7 +800,7 @@ describe('PATCH /api/qb/quotes/:id/status (status sync)', () => {
     expect(jt.status).toBe('accepted');
   });
 
-  it('sending syncs JT quote to review status', async () => {
+  it('sending syncs JT quote to sent status', async () => {
     const res = await request(app)
       .patch(`/api/qb/quotes/${qbId}/status`)
       .set('Authorization', `Bearer ${adminToken}`)
@@ -811,19 +811,7 @@ describe('PATCH /api/qb/quotes/:id/status (status sync)', () => {
     const { rows: [jt] } = await pool.query(
       'SELECT status FROM quotes WHERE id = $1', [linkedJtId]
     );
-    expect(jt.status).toBe('review');
-  });
-
-  it('declining syncs JT quote to declined status', async () => {
-    await request(app)
-      .patch(`/api/qb/quotes/${qbId}/status`)
-      .set('Authorization', `Bearer ${adminToken}`)
-      .send({ status: 'declined' });
-
-    const { rows: [jt] } = await pool.query(
-      'SELECT status FROM quotes WHERE id = $1', [linkedJtId]
-    );
-    expect(jt.status).toBe('declined');
+    expect(jt.status).toBe('sent');
   });
 
   it('returns 401 without a token', async () => {

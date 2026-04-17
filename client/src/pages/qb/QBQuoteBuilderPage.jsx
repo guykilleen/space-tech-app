@@ -220,11 +220,11 @@ export default function QBQuoteBuilderPage() {
   // Using savedStatusRef (the status at load time, updated after each save) means a user who just
   // changed the dropdown to accepted can still save that transition; it only hard-locks after the
   // save has committed the accepted/locked status to the database.
-  const isReadOnly = ['accepted', 'locked'].includes(savedStatusRef.current);
+  const isReadOnly = savedStatusRef.current === 'accepted';
 
   // Soft lock — sent/submitted quotes lock all fields EXCEPT the status dropdown, so the user can
   // revert to Draft and save without creating a formal revision. Save button remains visible.
-  const isSoftLocked = ['sent', 'submitted'].includes(savedStatusRef.current);
+  const isSoftLocked = savedStatusRef.current === 'sent';
 
   // isLocked covers both tiers — used to control unit-level field access and visual indicators.
   const isLocked = isReadOnly || isSoftLocked;
@@ -620,7 +620,7 @@ export default function QBQuoteBuilderPage() {
           {isNew ? 'New Quote' : `${isReadOnly || isSoftLocked ? 'Viewing' : 'Editing'} ${header.quote_number}`}
           {(isReadOnly || isSoftLocked) && (
             <span className={styles.lockedBadge}>
-              🔒 {{ accepted: 'Accepted', locked: 'Locked', sent: 'Sent', submitted: 'Submitted' }[header.status] || header.status}
+              🔒 {{ accepted: 'Accepted', sent: 'Sent' }[header.status] || header.status}
               {isReadOnly ? ' — Read Only' : ' — Locked'}
             </span>
           )}
@@ -697,7 +697,6 @@ export default function QBQuoteBuilderPage() {
                   <option value="draft">Draft</option>
                   <option value="sent">Sent</option>
                   <option value="accepted">Accepted</option>
-                  <option value="locked">Locked</option>
                 </select>
               </div>
               <div className="field">

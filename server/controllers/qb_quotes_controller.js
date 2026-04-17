@@ -409,7 +409,7 @@ async function _upsertFull(quoteId, body, client) {
       `SELECT h.status, c.name FROM qb_quote_headers h LEFT JOIN qb_contacts c ON h.client_id = c.id WHERE h.id = $1`,
       [quoteId]
     );
-    const jtStatus = { draft: 'pending', sent: 'review', submitted: 'review', accepted: 'accepted', declined: 'declined', locked: 'pending' }[qbHdr?.status] || 'pending';
+    const jtStatus = { draft: 'draft', sent: 'sent', accepted: 'accepted' }[qbHdr?.status] || 'draft';
     await client.query(
       'UPDATE quotes SET value = $1, client_name = COALESCE($2, client_name), status = $3 WHERE id = $4',
       [summarySubtotal, qbHdr?.name || null, jtStatus, hdr.quote_id]
@@ -476,22 +476,13 @@ async function update(req, res) {
 
 async function updateStatus(req, res) {
   const { status } = req.body;
-  const jtStatus = { draft: 'pending', sent: 'review', submitted: 'review', accepted: 'accepted', declined: 'declined', locked: 'pending' }[status] || 'pending';
+  const jtStatus = { draft: 'draft', sent: 'sent', accepted: 'accepted' }[status] || 'draft';
   try {
     const { rows } = await pool.query(
       `UPDATE qb_quote_headers SET status = $1 WHERE id = $2 RETURNING *`,
       [status, req.params.id]
     );
     if (!rows.length) return res.status(404).json({ error: 'Not found' });
-    // When a revision is accepted, lock all other quotes in the same group
-    if (status === 'accepted') {
-      const rootId = rows[0].parent_quote_id || rows[0].id;
-      await pool.query(
-        `UPDATE qb_quote_headers SET status = 'locked'
-         WHERE (id = $1 OR parent_quote_id = $1) AND id != $2`,
-        [rootId, req.params.id]
-      );
-    }
     // Sync status to linked JT quote
     if (rows[0].quote_id) {
       await pool.query('UPDATE quotes SET status = $1 WHERE id = $2', [jtStatus, rows[0].quote_id]);
@@ -875,7 +866,7 @@ async function getPdf(req, res) {
 
 // POST /qb/quotes/:id/revise
 // Deep-copies the quote, assigns the next revision letter, locks the source.
-// Only quotes in 'submitted', 'sent', or 'accepted' state can be revised.
+// Only quotes in 'sent' or 'accepted' state can be revised.
 // Returns 409 if a draft revision already exists in the group.
 async function revise(req, res) {
   const { id } = req.params;
@@ -921,12 +912,12 @@ async function revise(req, res) {
     const suffix        = String.fromCharCode(64 + nextSeq); // 65='A'
     const newQuoteNumber = `${baseNumber} Rev_${suffix}`;
 
-    // 6. Lock source quote and transfer the JT link to the new revision.
+    // 6. Transfer the JT link to the new revision.
     // quote_id has a UNIQUE constraint — only one QB quote can be linked to each JT quote,
     // so we clear it on the source before setting it on the revision.
     await client.query(
-      'UPDATE qb_quote_headers SET status = $1, quote_id = NULL WHERE id = $2',
-      ['locked', id]
+      'UPDATE qb_quote_headers SET quote_id = NULL WHERE id = $1',
+      [id]
     );
 
     // 7. Insert new header (deep copy, status=draft), inheriting the JT link
@@ -1019,7 +1010,7 @@ async function revise(req, res) {
 
 // ── Rate override helpers ─────────────────────────────────────────────────
 
-const EDITABLE_STATUSES = ['draft', 'pending'];
+const EDITABLE_STATUSES = ['draft'];
 
 // Returns a preview of what would change if rates were synced for a given unit.
 // No writes — purely informational.

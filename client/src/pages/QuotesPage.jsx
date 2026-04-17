@@ -6,16 +6,19 @@ import { useAuth } from '../context/AuthContext';
 import JobCreateModal from '../components/JobCreateModal';
 import styles from './Page.module.css';
 
-const STATUSES = ['pending','review','accepted','declined'];
+const STATUSES = ['draft','sent','accepted'];
 
+const BADGE_MAP = {
+  draft:    { cls: 'b-pending',  label: 'Draft'    },
+  sent:     { cls: 'b-review',   label: 'Sent'     },
+  accepted: { cls: 'b-accepted', label: 'Accepted' },
+};
 function badge(s) {
-  const map = { pending:'b-pending Pending', accepted:'b-accepted Accepted', declined:'b-declined Declined', review:'b-review Under Review' };
-  const [cls, label] = (map[s] || 'b-pending Pending').split(' ');
+  const { cls, label } = BADGE_MAP[s] || { cls: 'b-pending', label: s || 'Draft' };
   return <span className={`badge ${cls}`}>{label}</span>;
 }
 function qbBadge(s) {
-  const map = { draft:'b-pending Draft', sent:'b-review Sent', submitted:'b-review Submitted', accepted:'b-accepted Accepted', locked:'b-locked Locked' };
-  const [cls, label] = (map[s] || `b-pending ${s}`).split(' ');
+  const { cls, label } = BADGE_MAP[s] || { cls: 'b-pending', label: s || 'Draft' };
   return <span className={`badge ${cls}`}>{label}</span>;
 }
 function fmtDate(v) {
@@ -216,7 +219,7 @@ export default function QuotesPage() {
                         <td>
                           {isAdminOrMgr && (
                             <button className="act-btn edit" onClick={() => navigate(`/qb/quotes/${rev.qb_id}`)}>
-                              {['submitted','sent','accepted','locked'].includes(rev.qb_status) ? 'View' : 'Edit'}
+                              {['sent','accepted'].includes(rev.qb_status) ? 'View' : 'Edit'}
                             </button>
                           )}
                         </td>
