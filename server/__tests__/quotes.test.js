@@ -12,7 +12,7 @@ const QUOTE = {
   date:         '2024-06-01',
   initials:     'JT',
   value:        12500,
-  status:       'pending',
+  status:       'draft',
 };
 
 beforeAll(async () => {
@@ -111,6 +111,39 @@ describe('GET /api/quotes', () => {
       .set('Authorization', `Bearer ${wsRes.body.token}`);
 
     expect(res.status).toBe(200);
+  });
+});
+
+// ── Status update ─────────────────────────────────────────────────────────
+
+describe('PATCH /api/quotes/:id/status', () => {
+  it('accepts each valid status value', async () => {
+    for (const status of ['draft', 'sent', 'accepted']) {
+      const res = await request(app)
+        .patch(`/api/quotes/${quoteId}/status`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ status });
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe(status);
+    }
+  });
+
+  it.each(['pending', 'review', 'declined', 'submitted', 'locked'])(
+    'rejects old status "%s" with 400',
+    async (status) => {
+      const res = await request(app)
+        .patch(`/api/quotes/${quoteId}/status`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ status });
+      expect(res.status).toBe(400);
+    }
+  );
+
+  it('returns 401 without a token', async () => {
+    const res = await request(app)
+      .patch(`/api/quotes/${quoteId}/status`)
+      .send({ status: 'sent' });
+    expect(res.status).toBe(401);
   });
 });
 
