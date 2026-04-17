@@ -852,7 +852,7 @@ export default function QBQuoteBuilderPage() {
                 <thead>
                   <tr>
                     <th>Product</th>
-                    <th>Category</th>
+                    <th><span className={styles.catFull}>Category</span><span className={styles.catShort}>Cat</span></th>
                     <th style={{ width: 80 }}>Qty</th>
                     <th style={{ width: 110 }}>Price</th>
                     <th style={{ width: 60 }}>UOM</th>
@@ -906,9 +906,19 @@ export default function QBQuoteBuilderPage() {
                           disabled={isLocked}
                           onChange={e => setLine(unit._key, line._key, 'category', e.target.value)}
                           style={{ width: 110 }}
+                          className={styles.catDesktop}
                         >
                           <option value="Materials">Materials</option>
                           <option value="Hardware">Hardware</option>
+                        </select>
+                        <select
+                          value={line.category}
+                          disabled={isLocked}
+                          onChange={e => setLine(unit._key, line._key, 'category', e.target.value)}
+                          className={styles.catMobile}
+                        >
+                          <option value="Materials">M</option>
+                          <option value="Hardware">H</option>
                         </select>
                       </td>
                       <td>

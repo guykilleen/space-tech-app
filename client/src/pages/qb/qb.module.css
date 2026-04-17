@@ -750,14 +750,15 @@
 /* headerToggle: shown on mobile to collapse/expand Quote Details panel */
 .headerToggle { display: none; }
 
-/* Mobile Save bar — fixed to bottom of screen */
+/* Mobile Save bar */
 .mobileSaveBar { display: none; }
+.catShort  { display: none; }
+.catMobile { display: none; }
 
 /* ── Mobile ──────────────────────────────────────────────── */
 @media (max-width: 768px) {
 
-  /* Builder page — extra bottom padding for fixed save bar */
-  .builderPage { padding: 20px 14px calc(90px + env(safe-area-inset-bottom)); }
+  .builderPage { padding: 20px 14px 32px; }
 
   /* Sticky builder header */
   .builderHeader {
@@ -872,6 +873,12 @@
   .linesTable th { padding: 8px 10px; }
   .linesTable td { padding: 6px 6px; }
 
+  /* Category column abbreviation on mobile */
+  .catFull    { display: none; }
+  .catShort   { display: inline; }
+  .catDesktop { display: none; }
+  .catMobile  { display: block; width: 36px; }
+
   /* Labour section — tighten columns for small screens */
   .labourSection { padding: 12px 14px; }
   .labourField {
@@ -914,17 +921,13 @@
   /* Budget summary */
   .budgetSummary { min-width: unset; width: 100%; padding: 20px 16px; margin-bottom: 32px; }
 
-  /* Fixed save bar at bottom of builder */
+  /* Save bar — sits naturally at bottom of page content */
   .mobileSaveBar {
     display: flex;
     gap: 8px;
-    position: fixed;
-    bottom: 0; left: 0; right: 0;
-    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
-    background: var(--white);
+    padding: 16px 0 8px;
     border-top: 2px solid var(--oak-light);
-    z-index: 80;
-    box-shadow: 0 -2px 12px rgba(0,0,0,0.12);
+    margin-top: 16px;
   }
   .mobileSaveBar .btn { flex: 1; min-height: 50px; }
 
