@@ -52,7 +52,7 @@ function csvCell(val) {
 
 function buildJobCsv(job, contact = {}) {
   const dueDate = formatDateCsv(job.wip_due);
-  const productionHours  = (parseFloat(job.hours_machining) || 0) + (parseFloat(job.hours_assembly)  || 0);
+  const productionHours  = (parseFloat(job.hours_machining) || 0) + (parseFloat(job.hours_edgebander) || 0);
   const deliveryInstHours = (parseFloat(job.hours_delivery)  || 0) + (parseFloat(job.hours_install)   || 0);
 
   const headers = [

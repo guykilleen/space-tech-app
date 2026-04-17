@@ -18,8 +18,9 @@ describe('buildJobCsv', () => {
     client_name:     'Acme Joinery',
     wip_due:         '2025-08-15',
     hours_admin:     2,
-    hours_machining: 6,
-    hours_assembly:  4,
+    hours_machining:  6,
+    hours_edgebander: 4,
+    hours_assembly:   4,
     hours_delivery:  1,
     hours_install:   3,
     quote_id:        'some-uuid',
@@ -51,7 +52,7 @@ describe('buildJobCsv', () => {
     expect(row.estimated_installation_date).toBe('15/08/2025');
   });
 
-  it('combines machining + assembly into production_hours', () => {
+  it('combines machining + edgebander into production_hours', () => {
     const row = parseRows(buildJobCsv(baseJob, {}));
     // 6 + 4 = 10
     expect(row.production_hours).toBe('10');
@@ -107,7 +108,7 @@ describe('buildJobCsv', () => {
   });
 
   it('handles zero hours gracefully', () => {
-    const job = { ...baseJob, hours_machining: 0, hours_assembly: 0, hours_delivery: 0, hours_install: 0 };
+    const job = { ...baseJob, hours_machining: 0, hours_edgebander: 0, hours_assembly: 0, hours_delivery: 0, hours_install: 0 };
     const row = parseRows(buildJobCsv(job, {}));
     expect(row.production_hours).toBe('0');
     expect(row.delivery_dispatch_installation_hours).toBe('0');
