@@ -95,8 +95,8 @@ async function importXlsx(req, res) {
 
           const won = toStr(r[7]).toLowerCase();
           const status = won === 'y' || won === 'yes' ? 'accepted'
-                       : won === 'n' || won === 'no'  ? 'declined'
-                       : 'pending';
+                       : won === 'n' || won === 'no'  ? 'sent'
+                       : 'draft';
 
           await dbClient.query(
             `INSERT INTO quotes

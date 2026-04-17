@@ -436,7 +436,7 @@ async function create(req, res) {
     // Auto-create a linked job-tracker quote so QB is the single source of truth
     const { rows: [jtRow] } = await client.query(
       `INSERT INTO quotes (quote_number, date, client_name, project, initials, value, status)
-       VALUES ($1, $2, $3, $4, $5, 0, 'pending') RETURNING id`,
+       VALUES ($1, $2, $3, $4, $5, 0, 'draft') RETURNING id`,
       [qNum, req.body.date || new Date(),
        clientName || '(No client)', req.body.project || null, (req.body.prepared_by || '').slice(0, 10) || null]
     );
