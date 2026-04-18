@@ -101,6 +101,14 @@ function fmtMoney(v) {
   return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(v || 0);
 }
 
+function fmtNum(v) {
+  const n = Number(v);
+  if (!isFinite(n)) return v;
+  if (n === Math.floor(n)) return String(Math.floor(n));
+  const s = n.toFixed(2);
+  return s.endsWith('0') ? n.toFixed(1) : s;
+}
+
 // Labour costs always use the rate snapshotted onto each unit at creation time
 // (admin_rate, cnc_rate, etc. stored on qb_quote_units), so existing quotes are
 // never affected by future changes to the global price list.
@@ -852,11 +860,11 @@ export default function QBQuoteBuilderPage() {
                 <thead>
                   <tr>
                     <th>Product</th>
-                    <th><span className={styles.catFull}>Category</span><span className={styles.catShort}>Cat</span></th>
-                    <th style={{ width: 80 }}>Qty</th>
-                    <th style={{ width: 110 }}>Price</th>
-                    <th style={{ width: 60 }}>UOM</th>
-                    <th style={{ width: 110, textAlign: 'right' }}>Total</th>
+                    <th className={styles.colCat}><span className={styles.catFull}>Category</span><span className={styles.catShort}>Cat</span></th>
+                    <th className={styles.colQty}>Qty</th>
+                    <th className={styles.colPrice}>Price</th>
+                    <th className={styles.colUom}>UOM</th>
+                    <th className={styles.colTotal} style={{ textAlign: 'right' }}>Total</th>
                     <th style={{ width: 32 }}></th>
                   </tr>
                 </thead>
@@ -924,7 +932,7 @@ export default function QBQuoteBuilderPage() {
                       <td>
                         <input
                           type="number" min="0" step="any"
-                          value={line.quantity}
+                          value={fmtNum(line.quantity)}
                           readOnly={isLocked}
                           onChange={e => setLine(unit._key, line._key, 'quantity', e.target.value)}
                         />
@@ -933,7 +941,7 @@ export default function QBQuoteBuilderPage() {
                         <div className={styles.priceCell}>
                           <input
                             type="number" min="0" step="any"
-                            value={line.price}
+                            value={fmtNum(line.price)}
                             readOnly={isLocked}
                             onChange={e => setLinePrice(unit._key, line._key, e.target.value)}
                           />

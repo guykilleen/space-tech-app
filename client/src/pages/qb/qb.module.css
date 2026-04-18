@@ -148,6 +148,13 @@
 .lineDimmed td { opacity: 0.38; }
 .lineDimmed:hover td { background: inherit; }
 
+/* Lines table column widths — desktop defaults */
+.colCat   { width: 110px; }
+.colQty   { width: 80px; }
+.colPrice { width: 110px; }
+.colUom   { width: 60px; }
+.colTotal { width: 110px; }
+
 .productSelect {
   margin-bottom: 4px;
 }
@@ -864,20 +871,25 @@
   .unitMeta .unitField:nth-child(5) { flex: 1 1 100%; width: auto; }
   .removeUnit { position: absolute; top: 12px; right: 12px; }
 
-  /* Lines table — horizontal scroll */
-  .linesTableWrap {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-  .linesTable { min-width: 520px; }
-  .linesTable th { padding: 8px 10px; }
-  .linesTable td { padding: 6px 6px; }
+  /* Lines table — no horizontal scroll on mobile */
+  .linesTableWrap { overflow-x: visible; }
+  .linesTable { min-width: 0; width: 100%; font-size: .72rem; }
+  .linesTable th { padding: 6px 3px; font-size: .68rem; }
+  .linesTable td { padding: 5px 3px; }
+  .linesTable td input, .linesTable td select { padding: 4px 3px; font-size: .72rem; }
+
+  /* Mobile column widths — tight fixed widths so all 6 cols fit portrait */
+  .colCat   { width: 28px; }
+  .colQty   { width: 48px; }
+  .colPrice { width: 58px; }
+  .colUom   { width: 30px; }
+  .colTotal { width: 54px; }
 
   /* Category column abbreviation on mobile */
   .catFull    { display: none; }
   .catShort   { display: inline; }
   .catDesktop { display: none; }
-  .catMobile  { display: block; width: 36px; }
+  .catMobile  { display: block; width: 100%; }
 
   /* Labour section — tighten columns for small screens */
   .labourSection { padding: 12px 14px; }
