@@ -882,7 +882,8 @@
   .colCat   { width: 28px; }
   .colQty   { width: 48px; }
   .colPrice { width: 58px; }
-  .colUom   { width: 30px; }
+  .colUom   { width: 30px; min-width: 30px; max-width: 30px; overflow: hidden; }
+  .colUom input { width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; padding-left: 2px; padding-right: 2px; }
   .colTotal { width: 54px; }
 
   /* Category column abbreviation on mobile */
