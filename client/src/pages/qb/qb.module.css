@@ -871,20 +871,19 @@
   .unitMeta .unitField:nth-child(5) { flex: 1 1 100%; width: auto; }
   .removeUnit { position: absolute; top: 12px; right: 12px; }
 
-  /* Lines table — no horizontal scroll on mobile */
-  .linesTableWrap { overflow-x: visible; }
-  .linesTable { min-width: 0; width: 100%; font-size: .72rem; }
-  .linesTable th { padding: 6px 3px; font-size: .68rem; }
-  .linesTable td { padding: 5px 3px; }
+  /* Lines table — horizontal scroll; Product+Qty visible before scroll starts */
+  .linesTableWrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .linesTable { min-width: 480px; width: 100%; font-size: .72rem; }
+  .linesTable th { padding: 6px 4px; font-size: .68rem; }
+  .linesTable td { padding: 5px 4px; }
   .linesTable td input, .linesTable td select { padding: 4px 3px; font-size: .72rem; }
 
-  /* Mobile column widths — tight fixed widths so all 6 cols fit portrait */
-  .colCat   { width: 28px; }
-  .colQty   { width: 48px; }
-  .colPrice { width: 58px; }
-  .colUom   { width: 30px; min-width: 30px; max-width: 30px; overflow: hidden; }
-  .colUom input { width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; padding-left: 2px; padding-right: 2px; }
-  .colTotal { width: 54px; }
+  /* Mobile column widths — Product auto-fills; Qty narrow; rest scroll off right */
+  .colCat   { width: 26px; }
+  .colQty   { width: 44px; }
+  .colPrice { width: 78px; }
+  .colUom   { width: 36px; }
+  .colTotal { width: 66px; }
 
   /* Category column abbreviation on mobile */
   .catFull    { display: none; }
