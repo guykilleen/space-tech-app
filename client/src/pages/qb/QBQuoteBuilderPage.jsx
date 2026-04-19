@@ -476,9 +476,14 @@ export default function QBQuoteBuilderPage() {
       });
       if (!res.ok) throw new Error(`PDF failed: ${res.status}`);
       const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
-      setTimeout(() => URL.revokeObjectURL(url), 30000);
+      const reader = new FileReader();
+      reader.onload = () => {
+        const a = document.createElement('a');
+        a.href = reader.result;
+        a.download = `Quote-${id}.pdf`;
+        a.click();
+      };
+      reader.readAsDataURL(blob);
     } catch {
       toast.error('Failed to generate PDF');
     } finally {
