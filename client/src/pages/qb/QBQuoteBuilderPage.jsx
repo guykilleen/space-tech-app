@@ -489,19 +489,26 @@ export default function QBQuoteBuilderPage() {
         setPdfLoading(false);
         return;
       }
-      const reader = new FileReader();
-      reader.onerror = () => {
-        alert('PDF error: FileReader failed to read the file');
+      const isPWA = window.navigator.standalone === true;
+      if (isPWA) {
+        const objectUrl = URL.createObjectURL(blob);
+        window.location.href = objectUrl;
         setPdfLoading(false);
-      };
-      reader.onload = () => {
-        const a = document.createElement('a');
-        a.href = reader.result;
-        a.download = `Quote-${id}.pdf`;
-        a.click();
-        setPdfLoading(false);
-      };
-      reader.readAsDataURL(blob);
+      } else {
+        const reader = new FileReader();
+        reader.onerror = () => {
+          alert('PDF error: FileReader failed to read the file');
+          setPdfLoading(false);
+        };
+        reader.onload = () => {
+          const a = document.createElement('a');
+          a.href = reader.result;
+          a.download = `Quote-${id}.pdf`;
+          a.click();
+          setPdfLoading(false);
+        };
+        reader.readAsDataURL(blob);
+      }
     } catch (err) {
       alert(`PDF error: ${err.message || 'unknown error'}`);
       setPdfLoading(false);
