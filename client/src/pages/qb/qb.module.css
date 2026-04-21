@@ -836,6 +836,8 @@
     padding: 2px 0;
     text-align: left;
     min-height: 44px;
+    user-select: none;
+    -webkit-user-select: none;
   }
   .unitToggleChevron {
     font-size: 0.7rem;

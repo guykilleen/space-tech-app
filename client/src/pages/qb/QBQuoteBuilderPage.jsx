@@ -838,14 +838,16 @@ export default function QBQuoteBuilderPage() {
         return (
           <div key={unit._key} className={styles.unitCard}>
             <div className={styles.unitCardHeader}>
-              {/* Mobile-only accordion toggle */}
-              <button type="button" className={styles.unitToggleBtn} onClick={() => toggleUnit(unit._key)}>
+              {/* Mobile-only accordion toggle — div so fieldset[disabled] doesn't block it */}
+              <div role="button" tabIndex={0} className={styles.unitToggleBtn}
+                onClick={() => toggleUnit(unit._key)}
+                onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && toggleUnit(unit._key)}>
                 <span className={styles.unitToggleChevron}>{collapsedUnits.has(unit._key) ? '▶' : '▼'}</span>
                 <span className={styles.unitToggleLabel}>
                   Unit {unit.unit_number}
                   {unit.room_number ? ` · ${unit.room_number}` : unit.description ? ` · ${unit.description.slice(0, 32)}` : ''}
                 </span>
-              </button>
+              </div>
               {/* Desktop: always shown; Mobile: hidden when collapsed */}
               <div className={`${styles.unitHeaderFields}${collapsedUnits.has(unit._key) ? ' ' + styles.unitHeaderHidden : ''}`}>
                 <div className={styles.unitNum}>Unit {unit.unit_number}</div>
