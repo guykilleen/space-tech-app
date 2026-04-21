@@ -489,6 +489,10 @@ export default function QBQuoteBuilderPage() {
         setPdfLoading(false);
         return;
       }
+      const disposition = res.headers.get('Content-Disposition');
+      const match = disposition && disposition.match(/filename="([^"]+)"/);
+      const filename = match ? match[1] : `${header.quote_number}${header.project ? ' - ' + header.project : ''}.pdf`;
+
       const isPWA = window.navigator.standalone === true;
       if (isPWA) {
         const objectUrl = URL.createObjectURL(blob);
@@ -503,7 +507,7 @@ export default function QBQuoteBuilderPage() {
         reader.onload = () => {
           const a = document.createElement('a');
           a.href = reader.result;
-          a.download = `Quote-${id}.pdf`;
+          a.download = filename;
           a.click();
           setPdfLoading(false);
         };

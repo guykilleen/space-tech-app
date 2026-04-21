@@ -784,11 +784,9 @@ async function getPdf(req, res) {
       : '';
 
     // ── Filename ─────────────────────────────────────────────────────────
-    const clientSlug = (quote.contact_company || quote.contact_name || 'Client')
-      .replace(/[^a-zA-Z0-9 ]/g, '')
-      .trim()
-      .replace(/\s+/g, '-');
-    const filename = `Quote-${quote.quote_number}-${clientSlug}.pdf`;
+    const projectPart = quote.project ? ` - ${quote.project}` : '';
+    const filename = `${quote.quote_number}${projectPart}.pdf`
+      .replace(/[/\\:*?"<>|]/g, '-'); // strip chars invalid in filenames
 
     // ── Load template and inject ──────────────────────────────────────────
     const templatePath = path.join(__dirname, '../templates/quote-pdf.html');
