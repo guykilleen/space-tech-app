@@ -465,28 +465,45 @@ export default function QBQuoteBuilderPage() {
     setPdfLoading(true);
     try {
       const token = localStorage.getItem('token');
-      console.log('[PDF] token present:', !!token, '| value:', token);
       if (!token) {
-        toast.error('Not authenticated — please log in again');
+        alert('PDF error: not authenticated — please log in again');
         setPdfLoading(false);
         return;
       }
       const res = await fetch(`/api/qb/quotes/${id}/pdf`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error(`PDF failed: ${res.status}`);
+      if (!res.ok) {
+        alert(`PDF error: API returned ${res.status}`);
+        setPdfLoading(false);
+        return;
+      }
       const blob = await res.blob();
+      if (!blob || blob.size === 0) {
+        alert('PDF error: empty response from server');
+        setPdfLoading(false);
+        return;
+      }
+      if (blob.type && !blob.type.includes('pdf')) {
+        alert(`PDF error: unexpected content type "${blob.type}"`);
+        setPdfLoading(false);
+        return;
+      }
       const reader = new FileReader();
+      reader.onerror = () => {
+        alert('PDF error: FileReader failed to read the file');
+        setPdfLoading(false);
+      };
       reader.onload = () => {
         const a = document.createElement('a');
         a.href = reader.result;
         a.download = `Quote-${id}.pdf`;
         a.click();
+        setPdfLoading(false);
       };
       reader.readAsDataURL(blob);
-    } catch {
-      toast.error('Failed to generate PDF');
-    } finally {
+    } catch (err) {
+      alert(`PDF error: ${err.message || 'unknown error'}`);
       setPdfLoading(false);
     }
   }
