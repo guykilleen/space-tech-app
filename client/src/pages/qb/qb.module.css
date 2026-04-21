@@ -744,15 +744,38 @@
   border-top: 1px solid var(--oak-light);
 }
 
-/* ── Unit accordion — collapse/expand state (mobile only) ── */
-/* unitToggleBtn: shown on mobile only, tap to collapse/expand a unit */
-.unitToggleBtn { display: none; }
+/* ── Unit accordion — collapse/expand state ── */
+
+/* unitToggleBtn: desktop style — small chevron at left of header */
+.unitToggleBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  background: none;
+  border: 1px solid var(--oak-light);
+  border-radius: 3px;
+  cursor: pointer;
+  color: var(--oak-dark);
+  font-size: 0.6rem;
+  user-select: none;
+  -webkit-user-select: none;
+  margin-right: 4px;
+}
 
 /* unitHeaderFields: transparent wrapper on desktop so flex layout unchanged */
 .unitHeaderFields { display: contents; }
 
+/* Label only shown on mobile (desktop toggle is chevron-only) */
+.unitToggleLabel { display: none; }
+
 /* unitCardBody: wraps everything below the card header */
 .unitCardBody { }
+
+/* collapsed body — applies on all screen sizes */
+.unitCardBodyHidden { display: none; }
 
 /* headerToggle: shown on mobile to collapse/expand Quote Details panel */
 .headerToggle { display: none; }
@@ -821,23 +844,17 @@
   }
   .headerBodyHidden { display: none; }
 
-  /* Unit accordion toggle button */
+  /* Unit accordion toggle button — override to full-width on mobile */
   .unitToggleBtn {
     display: flex;
     width: 100%;
-    align-items: center;
-    gap: 10px;
-    background: none;
     border: none;
-    cursor: pointer;
+    padding: 2px 0;
+    min-height: 44px;
+    gap: 10px;
     font-family: 'DM Mono', monospace;
     font-size: .78rem;
-    color: var(--oak-dark);
-    padding: 2px 0;
-    text-align: left;
-    min-height: 44px;
-    user-select: none;
-    -webkit-user-select: none;
+    margin-right: 0;
   }
   .unitToggleChevron {
     font-size: 0.7rem;
@@ -853,9 +870,8 @@
     font-size: .78rem;
   }
 
-  /* When unit collapsed: hide header fields and card body */
+  /* When unit collapsed on mobile: also hide header fields */
   .unitHeaderFields.unitHeaderHidden { display: none; }
-  .unitCardBodyHidden { display: none; }
 
   /* Unit card */
   .unitCard { margin-bottom: 16px; }
