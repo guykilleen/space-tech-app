@@ -672,13 +672,19 @@ export default function QBQuoteBuilderPage() {
             {linkedQuoteId && (
               <button className="btn btn-outline" onClick={() => safeNavigate('/quotes')}>
                 <span className={styles.labelFull}>← Back to Quotes</span>
-                <span className={styles.labelMobile}>← Quotes</span>
+                <span className={styles.labelMobile}>Quotes</span>
               </button>
             )}
             {!isNew && (
               <>
-                <button className="btn btn-outline" onClick={() => safeNavigate(`/qb/quotes/${id}/summary`)}>Summary →</button>
-                <button className="btn btn-outline" onClick={() => safeNavigate(`/qb/quotes/${id}/budget`)}>Budget Qty →</button>
+                <button className="btn btn-outline" onClick={() => safeNavigate(`/qb/quotes/${id}/summary`)}>
+                  <span className={styles.labelFull}>Summary →</span>
+                  <span className={styles.labelMobile}>Summary</span>
+                </button>
+                <button className="btn btn-outline" onClick={() => safeNavigate(`/qb/quotes/${id}/budget`)}>
+                  <span className={styles.labelFull}>Budget Qty →</span>
+                  <span className={styles.labelMobile}>Budget Qty</span>
+                </button>
               </>
             )}
           </div>
@@ -691,7 +697,8 @@ export default function QBQuoteBuilderPage() {
             )}
             {!isNew && (
               <button type="button" className="btn btn-outline" onClick={handleOpenPdf} disabled={pdfLoading}>
-                {pdfLoading ? 'Generating…' : 'PDF →'}
+                <span className={styles.labelFull}>{pdfLoading ? 'Generating…' : 'PDF →'}</span>
+                <span className={styles.labelMobile}>{pdfLoading ? 'Generating…' : 'PDF'}</span>
               </button>
             )}
             {!isNew && savedStatusRef.current && savedStatusRef.current !== 'draft' && (

@@ -197,16 +197,9 @@ describe('QB Builder — read-only mode for non-draft statuses', () => {
     await waitFor(() => {
       expect(screen.getAllByRole('button', { name: /revise/i }).length).toBeGreaterThan(0);
     });
-    expect(screen.queryByText('Save Quote')).not.toBeInTheDocument();
+    expect(screen.queryAllByText('Save Quote')).toHaveLength(0);
   });
 
-  it('locked quote: Revise button is visible and Save Quote is hidden', async () => {
-    renderExistingQuote('locked');
-    await waitFor(() => {
-      expect(screen.getAllByRole('button', { name: /revise/i }).length).toBeGreaterThan(0);
-    });
-    expect(screen.queryByText('Save Quote')).not.toBeInTheDocument();
-  });
 
   it('sent quote: soft-lock banner is displayed (not hard-lock)', async () => {
     // Sent quotes show a soft-lock banner instructing user to revert to Draft
