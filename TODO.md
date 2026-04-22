@@ -1,6 +1,6 @@
 # Space Tech Design — Build To-Do List
 
-Last updated: 2026-04-18
+Last updated: 2026-04-23
 
 ---
 
@@ -20,8 +20,8 @@ Last updated: 2026-04-18
 
 ## Test Debt
 
-- [ ] **Local test DB migration** — Apply `parent_quote_id` migration to local test database so the 37 blocked server tests can run
-- [ ] **Duplicate Save button** — Fix the duplicate Save button causing 1 failing client test (`locked quote: Revise button is visible and Save Quote is hidden`)
+- [x] **Local test DB migration** — Apply `parent_quote_id` migration to local test database so the 37 blocked server tests can run
+- [x] **Duplicate Save button** — Fix the duplicate Save button causing 1 failing client test (`locked quote: Revise button is visible and Save Quote is hidden`)
 
 ---
 
@@ -37,8 +37,8 @@ Last updated: 2026-04-18
 ## iPhone Optimisation
 
 - [x] **Unit field layout** — Reconfigure quote builder Unit display so Level dropdown sits directly under Drawing #, and Description is aligned left and full width of the screen
-- [ ] **Materials/Hardware description** — Abbreviate the description text or reduce the width of the dropdown box to fit mobile screen
-- [ ] **Products dropdown** — Widen the Products dropdown box on mobile
+- [x] **Materials/Hardware description** — Abbreviate the description text or reduce the width of the dropdown box to fit mobile screen
+- [x] **Products dropdown** — Widen the Products dropdown box on mobile
 
 ---
 

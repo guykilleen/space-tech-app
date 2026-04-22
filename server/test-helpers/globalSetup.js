@@ -69,24 +69,43 @@ const SCHEMA = `
   );
 
   CREATE TABLE IF NOT EXISTS qb_quote_headers (
-    id           UUID         PRIMARY KEY DEFAULT uuid_generate_v4(),
-    quote_number VARCHAR(30)  NOT NULL UNIQUE,
-    date         DATE         NOT NULL DEFAULT CURRENT_DATE,
-    client_id    UUID         REFERENCES qb_contacts(id) ON DELETE SET NULL,
-    project      VARCHAR(200),
-    prepared_by  VARCHAR(120),
-    margin       NUMERIC(5,4) NOT NULL DEFAULT 0.15,
-    waste_pct    NUMERIC(5,4) NOT NULL DEFAULT 0.10,
-    status       VARCHAR(30)  NOT NULL DEFAULT 'draft'
-                   CHECK (status IN ('draft','sent','accepted','declined')),
-    notes        TEXT,
-    quote_id     UUID         REFERENCES quotes(id) ON DELETE CASCADE,
-    created_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-    updated_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+    id                UUID         PRIMARY KEY DEFAULT uuid_generate_v4(),
+    quote_number      VARCHAR(30)  NOT NULL UNIQUE,
+    date              DATE         NOT NULL DEFAULT CURRENT_DATE,
+    client_id         UUID         REFERENCES qb_contacts(id) ON DELETE SET NULL,
+    project           VARCHAR(200),
+    prepared_by       VARCHAR(120),
+    margin            NUMERIC(5,4) NOT NULL DEFAULT 0.15,
+    waste_pct         NUMERIC(5,4) NOT NULL DEFAULT 0.10,
+    status            VARCHAR(30)  NOT NULL DEFAULT 'draft'
+                        CHECK (status IN ('draft','sent','submitted','accepted','declined','locked')),
+    notes             TEXT,
+    quote_id          UUID         REFERENCES quotes(id) ON DELETE CASCADE,
+    parent_quote_id   UUID,
+    revision_suffix   VARCHAR(10),
+    revision_sequence INTEGER      NOT NULL DEFAULT 0,
+    created_at        TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    updated_at        TIMESTAMPTZ  NOT NULL DEFAULT NOW()
   );
 
   CREATE UNIQUE INDEX IF NOT EXISTS idx_qb_quote_headers_quote_id
     ON qb_quote_headers(quote_id) WHERE quote_id IS NOT NULL;
+
+  -- Idempotent patches for existing test DBs missing the revision columns
+  ALTER TABLE qb_quote_headers
+    ADD COLUMN IF NOT EXISTS parent_quote_id UUID;
+  ALTER TABLE qb_quote_headers
+    ADD COLUMN IF NOT EXISTS revision_suffix VARCHAR(10);
+  ALTER TABLE qb_quote_headers
+    ADD COLUMN IF NOT EXISTS revision_sequence INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE qb_quote_headers
+    DROP CONSTRAINT IF EXISTS qb_quote_headers_status_check;
+  ALTER TABLE qb_quote_headers
+    ADD CONSTRAINT qb_quote_headers_status_check
+    CHECK (status IN ('draft','sent','submitted','accepted','declined','locked'));
+
+  CREATE INDEX IF NOT EXISTS idx_qb_quote_headers_parent
+    ON qb_quote_headers(parent_quote_id);
 
   CREATE TABLE IF NOT EXISTS qb_quote_units (
     id                           UUID          PRIMARY KEY DEFAULT uuid_generate_v4(),
