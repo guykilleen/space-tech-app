@@ -667,32 +667,45 @@ export default function QBQuoteBuilderPage() {
           )}
         </div>
         <div className={styles.builderActions}>
-          {linkedQuoteId && (
-            <button className="btn btn-outline" onClick={() => safeNavigate('/quotes')}>← Back to Quotes</button>
-          )}
-          {!isNew && (
-            <>
-              <button className="btn btn-outline" onClick={() => safeNavigate(`/qb/quotes/${id}/summary`)}>Summary →</button>
-              <button className="btn btn-outline" onClick={() => safeNavigate(`/qb/quotes/${id}/budget`)}>Budget Qty →</button>
-              <button type="button" className="btn btn-outline" onClick={handleOpenPdf} disabled={pdfLoading}>{pdfLoading ? 'Generating…' : 'PDF →'}</button>
-            </>
-          )}
+          {/* Row 1 on mobile: navigation */}
+          <div className={styles.builderActionsNav}>
+            {linkedQuoteId && (
+              <button className="btn btn-outline" onClick={() => safeNavigate('/quotes')}>
+                <span className={styles.labelFull}>← Back to Quotes</span>
+                <span className={styles.labelMobile}>← Quotes</span>
+              </button>
+            )}
+            {!isNew && (
+              <>
+                <button className="btn btn-outline" onClick={() => safeNavigate(`/qb/quotes/${id}/summary`)}>Summary →</button>
+                <button className="btn btn-outline" onClick={() => safeNavigate(`/qb/quotes/${id}/budget`)}>Budget Qty →</button>
+              </>
+            )}
+          </div>
+          {/* Row 2 on mobile: actions */}
+          <div className={styles.builderActionsControls}>
+            {(!isReadOnly || header.status !== savedStatusRef.current) && (
+              <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+                {saving ? 'Saving…' : isNew ? 'Create Quote' : 'Save Quote'}
+              </button>
+            )}
+            {!isNew && (
+              <button type="button" className="btn btn-outline" onClick={handleOpenPdf} disabled={pdfLoading}>
+                {pdfLoading ? 'Generating…' : 'PDF →'}
+              </button>
+            )}
+            {!isNew && savedStatusRef.current && savedStatusRef.current !== 'draft' && (
+              <button
+                className={`btn ${isReadOnly ? 'btn-primary' : 'btn-outline'}`}
+                onClick={handleRevise}
+                disabled={revising || header.group_has_draft}
+                title={header.group_has_draft ? 'A draft revision already exists for this quote' : 'Create a new numbered revision of this quote'}
+              >
+                {revising ? 'Creating…' : 'Revise'}
+              </button>
+            )}
+          </div>
           {isDirty && (!isReadOnly || header.status !== savedStatusRef.current) && <span className={styles.unsavedBadge}>● Unsaved changes</span>}
-          {(!isReadOnly || header.status !== savedStatusRef.current) && (
-            <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-              {saving ? 'Saving…' : isNew ? 'Create Quote' : 'Save Quote'}
-            </button>
-          )}
-          {!isNew && savedStatusRef.current && savedStatusRef.current !== 'draft' && (
-            <button
-              className={`btn ${isReadOnly ? 'btn-primary' : 'btn-outline'}`}
-              onClick={handleRevise}
-              disabled={revising || header.group_has_draft}
-              title={header.group_has_draft ? 'A draft revision already exists for this quote' : 'Create a new numbered revision of this quote'}
-            >
-              {revising ? 'Creating…' : 'Revise'}
-            </button>
-          )}
         </div>
       </div>
 

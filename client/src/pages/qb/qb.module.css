@@ -34,6 +34,11 @@
   gap: 8px;
   flex-wrap: wrap;
 }
+.builderActionsNav,
+.builderActionsControls {
+  display: contents;
+}
+.labelMobile { display: none; }
 
 /* Unit card */
 .unitCard {
@@ -808,13 +813,19 @@
   .builderTitle { font-size: 1.5rem; }
   .builderActions {
     width: 100%;
-    justify-content: flex-start;
-    flex-wrap: wrap;
+    flex-direction: column;
     gap: 8px;
   }
-  .builderActions .btn, .builderActions a.btn {
+  .builderActionsNav,
+  .builderActionsControls {
+    display: flex;
+    width: 100%;
+    gap: 8px;
+  }
+  .builderActionsNav .btn,
+  .builderActionsControls .btn {
     flex: 1;
-    min-width: 100px;
+    min-width: 0;
     text-align: center;
     min-height: 44px;
     display: inline-flex;
@@ -823,6 +834,8 @@
     font-size: .65rem;
     padding: 10px 12px;
   }
+  .labelFull { display: none; }
+  .labelMobile { display: inline; }
 
   /* Collapsible Quote Details header */
   .headerToggle {
