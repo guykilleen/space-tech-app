@@ -850,7 +850,7 @@ async function getPdf(req, res) {
 
     res.set({
       'Content-Type': 'application/pdf',
-      'Content-Disposition': `inline; filename="${filename}"`,
+      'Content-Disposition': `attachment; filename="${filename}"`,
     });
     res.send(pdf);
   } catch (err) {
