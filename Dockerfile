@@ -2,7 +2,7 @@ FROM node:20-slim
 
 # Install system Chromium — Debian Bookworm (node:20-slim base) provides a
 # fully-linked chromium package that handles all shared-library dependencies.
-RUN apt-get update && apt-get install -y chromium --no-install-recommends \
+RUN apt-get update && apt-get install -y --no-install-recommends chromium postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
 # Skip puppeteer's bundled Chrome download — we'll use the system binary instead
