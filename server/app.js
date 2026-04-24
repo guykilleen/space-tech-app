@@ -23,14 +23,6 @@ app.use('/api/qb/quotes',        require('./routes/qb_quotes'));
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
-// TEMPORARY — remove after confirming backup works
-const { authenticate, isAdmin } = require('./middleware/auth');
-const { runBackup } = require('./services/backupService');
-app.get('/api/admin/test-backup', authenticate, isAdmin, async (req, res) => {
-  res.json({ message: 'Backup triggered — check server logs and your email' });
-  await runBackup();
-});
-
 // Serve React build in production
 if (process.env.NODE_ENV === 'production') {
   const clientBuild = path.join(__dirname, '../client/build');
