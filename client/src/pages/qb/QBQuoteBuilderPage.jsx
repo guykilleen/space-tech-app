@@ -183,6 +183,7 @@ export default function QBQuoteBuilderPage() {
   const [contacts,     setContacts]     = useState([]);
   const [labourRates,  setLabourRates]  = useState({});
   const [saving,       setSaving]       = useState(false);
+  const [projectError, setProjectError] = useState(false);
   const [revising,     setRevising]     = useState(false);
   const [loading,      setLoading]      = useState(!isNew);
   const [linkedQuoteId,   setLinkedQuoteId]   = useState(null);
@@ -536,6 +537,7 @@ export default function QBQuoteBuilderPage() {
   // ── Save ────────────────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
     if (!header.quote_number.trim()) return toast.error('Quote number required');
+    if (!header.project.trim()) { setProjectError(true); return; }
     const prevQbStatus = savedStatusRef.current;
     setSaving(true);
     try {
@@ -825,8 +827,15 @@ export default function QBQuoteBuilderPage() {
               </select>
             </div>
             <div className="field span-2">
-              <label>Project</label>
-              <input value={header.project} onChange={e => setH('project', e.target.value)} placeholder="Project name or address" disabled={isReadOnly || isSoftLocked} />
+              <label>Project <span className={styles.requiredMark}>*</span></label>
+              <input
+                value={header.project}
+                onChange={e => { setH('project', e.target.value); if (e.target.value.trim()) setProjectError(false); }}
+                placeholder="Project name or address"
+                disabled={isReadOnly || isSoftLocked}
+                className={projectError ? styles.inputError : undefined}
+              />
+              {projectError && <span className={styles.fieldError}>Project name is required</span>}
             </div>
             <div className="field span-2">
               <label>Prepared By</label>

@@ -1,5 +1,9 @@
 /* ── Quote Builder page ───────────────────────────────────────── */
 
+.requiredMark { color: #c0392b; margin-left: 2px; }
+.inputError { border-color: #c0392b !important; outline: none; }
+.fieldError { display: block; color: #c0392b; font-size: 0.75rem; margin-top: 3px; }
+
 .builderPage {
   padding: 40px 48px;
   max-width: 1400px;
